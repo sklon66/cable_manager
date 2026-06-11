@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CableManager5000 — 3D</title>
+  <link rel="stylesheet" href="3d-style.css">
+</head>
+<body>
+
+<!-- ── TOOLBAR ─────────────────────────────────────────────────────────────── -->
+<div id="toolbar">
+  <span class="logo">⌨ CableManager5000</span>
+
+  <button class="tool-btn" id="btn-back" title="Back to 2D tool">← 2D Tool</button>
+  <button class="tool-btn" id="btn-desk" title="Edit desk dimensions">⚙ Desk</button>
+
+  <div class="sep"></div>
+
+  <button class="tool-btn" id="btn-to3d" title="Switch to 3D view">Switch to 3D →</button>
+  <button class="tool-btn" id="btn-tolayout" title="Back to layout" style="display:none">← Layout</button>
+  <button class="tool-btn" id="btn-route" title="Route cables" style="display:none">Route Cables</button>
+  <button class="tool-btn danger" id="btn-clearcables" title="Clear cables" style="display:none">Clear Cables</button>
+  <button class="tool-btn active" id="btn-labels" title="Toggle labels" style="display:none">Labels</button>
+</div>
+
+<!-- ── MAIN ─────────────────────────────────────────────────────────────────── -->
+<div id="main">
+  <!-- 3D CANVAS -->
+  <div id="canvas3d"></div>
+
+  <!-- PROPERTIES PANEL -->
+  <div id="props">
+    <h3>Properties</h3>
+    <div id="props-empty">Select a device to edit its dimensions</div>
+    <div id="props-content"></div>
+  </div>
+</div>
+
+<!-- ── SETUP MODAL ───────────────────────────────────────────────────────────── -->
+<div id="modal-overlay" class="open">
+  <div id="modal">
+    <h2>Desk Setup</h2>
+
+    <div class="modal-section-label">Main Section</div>
+    <div class="modal-row">
+      <div class="prop-group">
+        <label class="prop-label">Width (cm)</label>
+        <input class="prop-input" id="setup-main-w" type="number" value="140" min="20" max="500">
+      </div>
+      <div class="prop-group">
+        <label class="prop-label">Depth (cm)</label>
+        <input class="prop-input" id="setup-main-d" type="number" value="60" min="20" max="300">
+      </div>
+    </div>
+
+    <div class="modal-section-label">Extension</div>
+    <div class="modal-row">
+      <div class="prop-group">
+        <label class="prop-label">Width (cm)</label>
+        <input class="prop-input" id="setup-ext-w" type="number" value="80" min="0" max="300">
+      </div>
+      <div class="prop-group">
+        <label class="prop-label">Depth (cm)</label>
+        <input class="prop-input" id="setup-ext-d" type="number" value="120" min="0" max="500">
+      </div>
+    </div>
+    <div class="prop-group" style="margin-top:8px">
+      <label class="prop-label">Extension Side</label>
+      <select class="prop-input" id="setup-ext-side">
+        <option value="right">Right</option>
+        <option value="left">Left</option>
+      </select>
+    </div>
+
+    <canvas id="desk-preview" width="332" height="130" style="margin-top:14px;border-radius:6px;display:block"></canvas>
+
+    <div class="modal-section-label" style="margin-top:12px">Data Source</div>
+    <div id="setup-data-info" style="font-size:12px;color:var(--text-dim);margin-bottom:8px"></div>
+    <input type="file" id="import-input" accept=".json" style="display:none">
+    <button class="btn" id="btn-import-json" style="display:none;width:100%;margin-bottom:8px">Import JSON</button>
+
+    <div class="modal-actions">
+      <button class="btn primary" id="btn-start">Start →</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── TOAST ─────────────────────────────────────────────────────────────────── -->
+<div id="toast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/renderers/CSS2DRenderer.js"></script>
+<script src="3d-cables.js"></script>
+<script src="3d-app.js"></script>
+</body>
+</html>

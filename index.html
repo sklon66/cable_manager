@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CableManager5000</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- ── TOOLBAR ─────────────────────────────────────────────────────────────── -->
+<div id="toolbar">
+  <span class="logo">⌨ CableManager5000</span>
+
+  <button class="tool-btn active" id="btn-select" title="Select / Move (S)">
+    <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 2l7 4-4 1-2 4z" fill="currentColor"/></svg>
+    Select
+  </button>
+  <button class="tool-btn" id="btn-cable" title="Add Cable (C)">
+    <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 10 Q6 2 10 2" stroke="currentColor" stroke-width="2" fill="none"/><circle cx="2" cy="10" r="1.5" fill="currentColor"/><circle cx="10" cy="2" r="1.5" fill="currentColor"/></svg>
+    Add Cable
+  </button>
+  <button class="tool-btn danger" id="btn-delete" title="Delete selected (Del)">
+    <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 2l8 8M10 2l-8 8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+    Delete
+  </button>
+
+  <div class="sep"></div>
+
+  <button class="tool-btn" id="btn-zoom-out" title="Zoom Out">－</button>
+  <button class="tool-btn" id="btn-zoom-fit" title="Fit all devices">Fit</button>
+  <button class="tool-btn" id="btn-zoom-in"  title="Zoom In">＋</button>
+
+  <div class="sep"></div>
+
+  <button class="tool-btn" id="btn-import" title="Import JSON">Import</button>
+  <button class="tool-btn" id="btn-export" title="Export JSON">Export</button>
+  <input type="file" id="import-input" accept=".json" style="display:none">
+
+  <div class="sep"></div>
+
+  <button class="tool-btn danger" id="btn-reset" title="Reset to default layout">Reset</button>
+
+  <div class="sep"></div>
+
+  <button class="tool-btn" id="btn-3d" title="Open 3D desk view" onclick="window.location.href='3d.html'">3D View →</button>
+</div>
+
+<!-- ── MAIN ─────────────────────────────────────────────────────────────────── -->
+<div id="main">
+
+  <!-- PALETTE -->
+  <div id="palette">
+    <h3>Devices</h3>
+    <div class="palette-item" data-type="pc">
+      <span class="pi-icon">🖥️</span>
+      <div><div class="pi-label">PC / Laptop</div><div class="pi-hint">Click or drag</div></div>
+    </div>
+    <div class="palette-item" data-type="kvm">
+      <span class="pi-icon">🔀</span>
+      <div><div class="pi-label">KVM Switch</div><div class="pi-hint">Click or drag</div></div>
+    </div>
+    <div class="palette-item" data-type="monitor">
+      <span class="pi-icon">🖵</span>
+      <div><div class="pi-label">Monitor</div><div class="pi-hint">Click or drag</div></div>
+    </div>
+    <div class="palette-item" data-type="usb_hub">
+      <span class="pi-icon">🔌</span>
+      <div><div class="pi-label">USB Hub</div><div class="pi-hint">Click or drag</div></div>
+    </div>
+    <div class="palette-item" data-type="usb_device">
+      <span class="pi-icon">💾</span>
+      <div><div class="pi-label">USB Device</div><div class="pi-hint">Click or drag</div></div>
+    </div>
+    <div class="palette-item" data-type="audio">
+      <span class="pi-icon">🔊</span>
+      <div><div class="pi-label">Audio Device</div><div class="pi-hint">Click or drag</div></div>
+    </div>
+    <div class="palette-item" data-type="network">
+      <span class="pi-icon">🌐</span>
+      <div><div class="pi-label">Network Switch</div><div class="pi-hint">Click or drag</div></div>
+    </div>
+    <div class="palette-item" data-type="other">
+      <span class="pi-icon">⬜</span>
+      <div><div class="pi-label">Other Device</div><div class="pi-hint">Click or drag</div></div>
+    </div>
+
+    <h3 style="margin-top:12px">Cable Types</h3>
+    <div class="legend" style="padding:0 12px 12px">
+      <div class="legend-item"><div class="legend-dot" style="background:#2563eb"></div><span class="legend-label">USB-A</span></div>
+      <div class="legend-item"><div class="legend-dot" style="background:#7c3aed"></div><span class="legend-label">USB-C</span></div>
+      <div class="legend-item"><div class="legend-dot" style="background:#0891b2"></div><span class="legend-label">USB-B</span></div>
+      <div class="legend-item"><div class="legend-dot" style="background:#d97706"></div><span class="legend-label">HDMI</span></div>
+      <div class="legend-item"><div class="legend-dot" style="background:#dc2626"></div><span class="legend-label">DisplayPort</span></div>
+      <div class="legend-item"><div class="legend-dot" style="background:#16a34a"></div><span class="legend-label">Ethernet</span></div>
+      <div class="legend-item"><div class="legend-dot" style="background:#6b7280"></div><span class="legend-label">Power</span></div>
+      <div class="legend-item"><div class="legend-dot" style="background:#db2777"></div><span class="legend-label">Audio</span></div>
+    </div>
+
+    <h3 style="margin-top:4px">Shortcuts</h3>
+    <div style="padding:6px 12px 12px;line-height:1.9">
+      <div style="font-size:10px;color:var(--text-dim)"><kbd style="background:var(--surface2);padding:1px 5px;border-radius:3px;border:1px solid var(--border)">S</kbd> Select mode</div>
+      <div style="font-size:10px;color:var(--text-dim)"><kbd style="background:var(--surface2);padding:1px 5px;border-radius:3px;border:1px solid var(--border)">C</kbd> Cable mode</div>
+      <div style="font-size:10px;color:var(--text-dim)"><kbd style="background:var(--surface2);padding:1px 5px;border-radius:3px;border:1px solid var(--border)">Del</kbd> Delete selected</div>
+      <div style="font-size:10px;color:var(--text-dim)"><kbd style="background:var(--surface2);padding:1px 5px;border-radius:3px;border:1px solid var(--border)">Esc</kbd> Cancel / Deselect</div>
+      <div style="font-size:10px;color:var(--text-dim)">Scroll to zoom</div>
+    </div>
+  </div>
+
+  <!-- CANVAS -->
+  <div id="canvas-wrap">
+    <div id="canvas-inner">
+      <svg id="cables"></svg>
+      <!-- device cards injected by JS -->
+    </div>
+  </div>
+
+  <!-- PROPERTIES -->
+  <div id="props">
+    <h3>Properties</h3>
+    <div id="props-empty" style="display:flex">
+      <span>Select a device or cable to edit its properties</span>
+    </div>
+    <div id="props-content"></div>
+  </div>
+
+</div>
+
+<!-- ── CABLE MODAL ───────────────────────────────────────────────────────────── -->
+<div id="modal-overlay">
+  <div id="modal">
+    <h2>Add Cable</h2>
+    <div style="font-size:12px;color:var(--text-dim)" id="modal-conn-label"></div>
+
+    <div class="prop-group">
+      <label class="prop-label">Cable Type</label>
+      <select class="prop-input" id="modal-cable-type">
+        <option>USB-A</option>
+        <option>USB-C</option>
+        <option>USB-B</option>
+        <option>HDMI</option>
+        <option>DisplayPort</option>
+        <option>Ethernet</option>
+        <option>Power</option>
+        <option>Audio</option>
+        <option>Other</option>
+      </select>
+    </div>
+
+    <div class="prop-group">
+      <label class="prop-label">Label (optional)</label>
+      <input class="prop-input" id="modal-cable-label" type="text" placeholder="e.g. Channel 1, 4K@60Hz">
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn" id="modal-cancel">Cancel</button>
+      <button class="btn primary" id="modal-confirm">Add Cable</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── TOAST ─────────────────────────────────────────────────────────────────── -->
+<div id="toast"></div>
+
+<script src="app.js"></script>
+</body>
+</html>
