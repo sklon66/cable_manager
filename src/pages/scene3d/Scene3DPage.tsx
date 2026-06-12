@@ -14,16 +14,12 @@ export default function Scene3DPage() {
     useSceneStore.getState().init(loadLayoutRaw());
   }, []);
 
-  // R rotates the selected device; Delete removes the selected 3D waypoint
+  // R rotates the selected device
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       const tag = (e.target as HTMLElement).tagName;
       if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
       const s = useSceneStore.getState();
-      if ((e.key === 'Delete' || e.key === 'Backspace') && s.selectedWP) {
-        s.removeUserWaypoint(s.selectedWP.cableId, s.selectedWP.wpIndex);
-        return;
-      }
       if ((e.key === 'r' || e.key === 'R') && s.selected !== null) {
         s.rotateDevice(s.selected, 90);
       }

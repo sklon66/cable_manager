@@ -59,25 +59,6 @@ function PortSections({ dev }: { dev: SceneDevice }) {
           </div>
         );
       })}
-
-      <div className="prop-divider" />
-      <div className="prop-label" style={{ paddingBottom: 4 }}>
-        Under-desk waypoints <span style={{ color: 'var(--text-dim)', fontSize: 9 }}>dbl-click cable to add</span>
-      </div>
-      {conn.map(cable => (
-        <div className="prop-group" key={`wp-${cable.id}`}>
-          <label className="prop-label" style={{ fontSize: 9 }}>
-            {cable.cableType} → {otherName(cable)}: {cable.userWaypoints.length} wp(s)
-          </label>
-          <button
-            className="btn"
-            style={{ padding: '3px 8px', fontSize: 9 }}
-            onClick={() => useSceneStore.getState().clearUserWaypoints(cable.id)}
-          >
-            Clear
-          </button>
-        </div>
-      ))}
     </>
   );
 }

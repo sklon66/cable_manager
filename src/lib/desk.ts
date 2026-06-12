@@ -2,7 +2,6 @@ import type { DeskConfig } from '../types';
 
 export const DESK_Y = 3;   // desk surface world-y
 export const SNAP_CM = 2;
-export const UNDER_Y = -3; // cable routing plane below desk bottom (Y=0)
 
 export interface DeskBounds {
   mX0: number; mX1: number; mZ1: number;

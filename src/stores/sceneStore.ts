@@ -23,8 +23,8 @@ export interface SceneCable {
   cableType: CableTypeName;
   portOffA: number; portHtA: number | null; portFaceA: PortFace | null;
   portOffB: number; portHtB: number | null; portFaceB: PortFace | null;
+  /** Carried through from saved data for format compatibility; no UI uses it. */
   userWaypoints: Waypoint3D[];
-  routeIdx: number | null;
 }
 
 export type Mode3D = 'layout' | '3d';
@@ -35,7 +35,6 @@ interface SceneState {
   devices: SceneDevice[];
   cables: SceneCable[];
   selected: number | null;
-  selectedWP: { cableId: number; wpIndex: number } | null;
   routed: boolean;
   labelsVisible: boolean;
   rawData: LayoutDoc | null;
@@ -52,7 +51,6 @@ interface SceneState {
   applyDeskAndStart: (desk: DeskConfig) => void;
   setMode: (mode: Mode3D) => void;
   setSelected: (id: number | null) => void;
-  setSelectedWP: (wp: { cableId: number; wpIndex: number } | null) => void;
   setDragging: (d: boolean) => void;
   moveDevice: (id: number, x: number, z: number) => void;
   updateDevice: (id: number, patch: Partial<SceneDevice>) => void;
@@ -63,10 +61,6 @@ interface SceneState {
   toggleLabels: () => void;
   setPortFace: (cableId: number, isFrom: boolean, face: PortFace | null) => void;
   setPort: (cableId: number, isFrom: boolean, off: number, ht: number) => void;
-  addUserWaypoint: (cableId: number, wp: Waypoint3D) => void;
-  moveUserWaypoint: (cableId: number, index: number, wp: Waypoint3D) => void;
-  removeUserWaypoint: (cableId: number, index: number) => void;
-  clearUserWaypoints: (cableId: number) => void;
 }
 
 function persist(s: Pick<SceneState, 'desk' | 'devices' | 'cables'>) {
@@ -98,7 +92,6 @@ function buildSceneFromLayout(rawData: LayoutDoc | null, desk: DeskConfig): { de
       portOffA: sv?.portOffA || 0, portHtA: sv?.portHtA ?? null, portFaceA: sv?.portFaceA || null,
       portOffB: sv?.portOffB || 0, portHtB: sv?.portHtB ?? null, portFaceB: sv?.portFaceB || null,
       userWaypoints: sv?.userWaypoints || [],
-      routeIdx: null,
     };
   });
 
@@ -150,7 +143,6 @@ export const useSceneStore = create<SceneState>((set, get) => ({
   devices: [],
   cables: [],
   selected: null,
-  selectedWP: null,
   routed: false,
   labelsVisible: true,
   rawData: null,
@@ -163,7 +155,7 @@ export const useSceneStore = create<SceneState>((set, get) => ({
     const desk = saved.desk ? { ...DEFAULT_DESK, ...saved.desk } : { ...DEFAULT_DESK };
     if (saved.desk) {
       const { devices, cables } = buildSceneFromLayout(rawData, desk);
-      set({ desk, rawData, devices, cables, started: true, setupOpen: false, mode: 'layout', routed: false, selected: null, selectedWP: null });
+      set({ desk, rawData, devices, cables, started: true, setupOpen: false, mode: 'layout', routed: false, selected: null });
     } else {
       set({ desk, rawData, started: false, setupOpen: true });
     }
@@ -175,17 +167,16 @@ export const useSceneStore = create<SceneState>((set, get) => ({
 
   applyDeskAndStart: desk => {
     const { devices, cables } = buildSceneFromLayout(get().rawData, desk);
-    set({ desk, devices, cables, started: true, setupOpen: false, mode: 'layout', routed: false, selected: null, selectedWP: null });
+    set({ desk, devices, cables, started: true, setupOpen: false, mode: 'layout', routed: false, selected: null });
     persist(get());
   },
 
   setMode: mode => set(mode === 'layout'
-    // Entering layout clears routed cables (legacy switchToLayout → clearCables)
-    ? { mode, routed: false, selected: null, selectedWP: null }
+    // Entering layout clears routed ports (legacy switchToLayout → clearCables)
+    ? { mode, routed: false, selected: null }
     : { mode, selected: null }),
 
   setSelected: id => set({ selected: id }),
-  setSelectedWP: wp => set({ selectedWP: wp }),
   setDragging: dragging => set({ dragging }),
 
   moveDevice: (id, x, z) => set(st => ({
@@ -214,21 +205,15 @@ export const useSceneStore = create<SceneState>((set, get) => ({
     const devIds = new Set(st.devices.map(d => d.id));
     const valid = st.cables.filter(c => devIds.has(c.fromId) && devIds.has(c.toId));
     if (!valid.length) {
-      set({ routed: false, selectedWP: null });
+      set({ routed: false });
       showToast('No cables to route');
       return;
     }
-    let i = 0;
-    set({
-      cables: st.cables.map(c =>
-        devIds.has(c.fromId) && devIds.has(c.toId) ? { ...c, routeIdx: i++ } : { ...c, routeIdx: null }),
-      routed: true,
-      selectedWP: null,
-    });
+    set({ routed: true });
     showToast(`Routed ${valid.length} cable${valid.length !== 1 ? 's' : ''}`);
   },
 
-  clearCables: () => set({ routed: false, selectedWP: null }),
+  clearCables: () => set({ routed: false }),
 
   toggleLabels: () => set(st => ({ labelsVisible: !st.labelsVisible })),
 
@@ -251,45 +236,4 @@ export const useSceneStore = create<SceneState>((set, get) => ({
       return isFrom ? { ...c, portOffA: off, portHtA: ht } : { ...c, portOffB: off, portHtB: ht };
     }),
   })),
-
-  addUserWaypoint: (cableId, wp) => set(st => {
-    const next = {
-      cables: st.cables.map(c =>
-        c.id === cableId ? { ...c, userWaypoints: [...c.userWaypoints, wp] } : c),
-    };
-    persist({ ...st, ...next });
-    return next;
-  }),
-
-  moveUserWaypoint: (cableId, index, wp) => set(st => ({
-    cables: st.cables.map(c => {
-      if (c.id !== cableId) return c;
-      const userWaypoints = [...c.userWaypoints];
-      userWaypoints[index] = wp;
-      return { ...c, userWaypoints };
-    }),
-  })),
-
-  removeUserWaypoint: (cableId, index) => set(st => {
-    const next = {
-      cables: st.cables.map(c => {
-        if (c.id !== cableId) return c;
-        const userWaypoints = [...c.userWaypoints];
-        userWaypoints.splice(index, 1);
-        return { ...c, userWaypoints };
-      }),
-      selectedWP: null,
-    };
-    persist({ ...st, ...next });
-    return next;
-  }),
-
-  clearUserWaypoints: cableId => set(st => {
-    const next = {
-      cables: st.cables.map(c => (c.id === cableId ? { ...c, userWaypoints: [] } : c)),
-      selectedWP: null,
-    };
-    persist({ ...st, ...next });
-    return next;
-  }),
 }));
