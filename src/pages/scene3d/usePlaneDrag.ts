@@ -9,6 +9,7 @@ import { useSceneStore } from '../../stores/sceneStore';
 export function usePlaneDrag() {
   const camera = useThree(s => s.camera);
   const gl = useThree(s => s.gl);
+  const getThree = useThree(s => s.get);
 
   return (
     plane: THREE.Plane,
@@ -18,6 +19,10 @@ export function usePlaneDrag() {
     const raycaster = new THREE.Raycaster();
     const ndc = new THREE.Vector2();
     const pt = new THREE.Vector3();
+    // Disable synchronously — the store flag only applies on the next React
+    // render, which lets OrbitControls pan a few frames at drag start
+    const controls = getThree().controls as { enabled: boolean } | null;
+    if (controls) controls.enabled = false;
     useSceneStore.getState().setDragging(true);
 
     const move = (ev: PointerEvent) => {

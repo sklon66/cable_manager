@@ -33,8 +33,22 @@ function Cameras() {
         fov={50} near={0.1} far={5000}
         position={[b.cx, b.totalD * 1.3, b.totalD * 2.0]}
       />
-      {mode === '3d' && (
-        <OrbitControls makeDefault enabled={!dragging} target={[b.cx, DESK_Y, b.cz]} />
+      {/* Distinct keys: reusing one element across the camera switch makes drei
+          rebuild controls mid-commit with an undefined camera */}
+      {mode === '3d' ? (
+        <OrbitControls key="ctl-3d" makeDefault enabled={!dragging} target={[b.cx, DESK_Y, b.cz]} />
+      ) : (
+        // Layout mode: left-drag pans the top-down view, wheel zooms; no rotation
+        <OrbitControls
+          key="ctl-layout"
+          makeDefault
+          enabled={!dragging}
+          enableRotate={false}
+          enableDamping={false}
+          screenSpacePanning
+          mouseButtons={{ LEFT: THREE.MOUSE.PAN, MIDDLE: THREE.MOUSE.DOLLY, RIGHT: THREE.MOUSE.PAN }}
+          target={[b.cx, 0, b.cz]}
+        />
       )}
     </>
   );
