@@ -1,0 +1,354 @@
+.page-2d {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* ── TOOLBAR ── */
+.page-2d #toolbar {
+  height: var(--toolbar-h);
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  gap: 6px;
+  flex-shrink: 0;
+  z-index: 100;
+}
+
+.page-2d #toolbar .logo {
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--accent);
+  margin-right: 12px;
+  letter-spacing: 0.5px;
+}
+
+.page-2d .tool-btn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-dim);
+  cursor: pointer;
+  font-size: 12px;
+  transition: all 0.15s;
+  white-space: nowrap;
+  text-decoration: none;
+}
+.page-2d .tool-btn:hover { background: var(--surface2); color: var(--text); border-color: var(--accent); }
+.page-2d .tool-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+.page-2d .tool-btn.danger:hover { background: var(--danger); border-color: var(--danger); color: #fff; }
+
+.page-2d .sep { width: 1px; height: 24px; background: var(--border); margin: 0 4px; }
+.page-2d .spacer { flex: 1; }
+
+/* ── MAIN LAYOUT ── */
+.page-2d #main {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+/* ── PALETTE ── */
+.page-2d #palette {
+  width: var(--palette-w);
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  flex-shrink: 0;
+}
+
+.page-2d #palette h3 {
+  padding: 10px 12px 6px;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--text-dim);
+}
+
+.page-2d .palette-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  cursor: pointer;
+  border-radius: 6px;
+  margin: 1px 6px;
+  transition: background 0.12s;
+  user-select: none;
+}
+.page-2d .palette-item:hover { background: var(--surface2); }
+.page-2d .palette-item:active { background: var(--accent); }
+.page-2d .palette-item .pi-icon { font-size: 18px; line-height: 1; }
+.page-2d .palette-item .pi-label { font-size: 12px; color: var(--text); }
+.page-2d .palette-item .pi-hint { font-size: 10px; color: var(--text-dim); }
+
+/* ── CANVAS AREA ── */
+.page-2d #canvas-wrap {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+  background: var(--bg);
+  background-image:
+    linear-gradient(var(--border) 1px, transparent 1px),
+    linear-gradient(90deg, var(--border) 1px, transparent 1px);
+  background-size: 32px 32px;
+  cursor: default;
+}
+
+.page-2d #canvas-wrap.mode-cable { cursor: crosshair; }
+.page-2d #canvas-wrap.mode-pan { cursor: grab; }
+.page-2d #canvas-wrap.mode-pan:active { cursor: grabbing; }
+
+.page-2d #canvas-inner {
+  position: absolute;
+  top: 0; left: 0;
+  width: 4000px; height: 4000px;
+  transform-origin: 0 0;
+}
+
+.page-2d svg#cables {
+  position: absolute;
+  top: 0; left: 0;
+  width: 4000px; height: 4000px;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.page-2d svg#cables .cable-hit {
+  pointer-events: stroke;
+  cursor: pointer;
+}
+
+.page-2d svg#cables .cable-line {
+  fill: none;
+  stroke-width: 2.5;
+  stroke-linecap: round;
+}
+
+.page-2d svg#cables .cable-label-bg {
+  fill: var(--surface);
+  rx: 3;
+}
+
+.page-2d svg#cables .cable-label-text {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 11px;
+  fill: var(--text);
+  text-anchor: middle;
+  dominant-baseline: middle;
+  pointer-events: none;
+}
+
+.page-2d svg#cables .cable-selected .cable-line { stroke-width: 3.5; }
+
+/* ── DEVICE CARDS ── */
+.page-2d .device-card {
+  position: absolute;
+  min-width: 110px;
+  background: var(--surface);
+  border: 1.5px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 12px;
+  cursor: grab;
+  user-select: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+}
+.page-2d .device-card:active { cursor: grabbing; }
+.page-2d .device-card.selected {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(99,102,241,0.4), 0 2px 8px rgba(0,0,0,0.4);
+}
+.page-2d .device-card.cable-source {
+  border-color: var(--success);
+  box-shadow: 0 0 0 2px rgba(34,197,94,0.4), 0 2px 8px rgba(0,0,0,0.4);
+}
+
+.page-2d .dc-icon { font-size: 24px; line-height: 1; margin-bottom: 4px; }
+.page-2d .dc-name {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 120px;
+}
+.page-2d .dc-type { font-size: 10px; color: var(--text-dim); margin-top: 1px; }
+.page-2d .dc-color-bar {
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 3px;
+  border-radius: 10px 10px 0 0;
+}
+
+/* ── PROPERTIES PANEL ── */
+.page-2d #props {
+  width: var(--props-w);
+  background: var(--surface);
+  border-left: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  flex-shrink: 0;
+}
+
+.page-2d #props h3 {
+  padding: 10px 12px 6px;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--text-dim);
+  border-bottom: 1px solid var(--border);
+}
+
+.page-2d #props-content {
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  flex: 1;
+}
+
+.page-2d #props-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  color: var(--text-dim);
+  font-size: 12px;
+  text-align: center;
+  padding: 24px;
+}
+
+.page-2d .prop-group { display: flex; flex-direction: column; gap: 4px; }
+.page-2d .prop-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.8px; color: var(--text-dim); }
+.page-2d .prop-input {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  padding: 6px 8px;
+  font-size: 12px;
+  outline: none;
+  width: 100%;
+  transition: border-color 0.15s;
+}
+.page-2d .prop-input:focus { border-color: var(--accent); }
+
+.page-2d select.prop-input option { background: var(--surface2); }
+
+.page-2d .color-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.page-2d .color-swatch {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  overflow: hidden;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.page-2d .color-swatch input[type=color] {
+  width: 200%;
+  height: 200%;
+  margin: -25% -25%;
+  cursor: pointer;
+  border: none;
+  background: none;
+  padding: 0;
+}
+
+.page-2d .prop-delete-btn {
+  margin-top: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 7px;
+  border: 1px solid var(--danger);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--danger);
+  cursor: pointer;
+  font-size: 12px;
+  transition: all 0.15s;
+  width: 100%;
+}
+.page-2d .prop-delete-btn:hover { background: var(--danger); color: #fff; }
+
+/* ── CABLE TYPE LEGEND ── */
+.page-2d #palette .legend { padding: 8px 12px; }
+.page-2d .legend-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 3px 0;
+}
+.page-2d .legend-dot {
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.page-2d .legend-label { font-size: 11px; color: var(--text-dim); }
+
+/* ── MODAL ── */
+.page-2d #modal-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.6);
+  z-index: 999;
+  align-items: center;
+  justify-content: center;
+}
+.page-2d #modal-overlay.open { display: flex; }
+
+.page-2d #modal {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 24px;
+  width: 320px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+}
+
+.page-2d #modal h2 { font-size: 15px; font-weight: 600; }
+
+.page-2d .modal-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-top: 4px;
+}
+
+.page-2d .btn {
+  padding: 7px 16px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+  font-size: 12px;
+  transition: all 0.15s;
+}
+.page-2d .btn:hover { background: var(--surface2); }
+.page-2d .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.page-2d .btn.primary:hover { background: var(--accent-hover); }

@@ -1,0 +1,225 @@
+.page-3d {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* ── TOOLBAR ── */
+.page-3d #toolbar {
+  height: var(--toolbar-h);
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  gap: 6px;
+  flex-shrink: 0;
+  z-index: 100;
+}
+
+.page-3d #toolbar .logo {
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--accent);
+  margin-right: 12px;
+  letter-spacing: 0.5px;
+}
+
+.page-3d .tool-btn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-dim);
+  cursor: pointer;
+  font-size: 12px;
+  transition: all 0.15s;
+  white-space: nowrap;
+  text-decoration: none;
+}
+.page-3d .tool-btn:hover { background: var(--surface2); color: var(--text); border-color: var(--accent); }
+.page-3d .tool-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+.page-3d .tool-btn.danger:hover { background: var(--danger); border-color: var(--danger); color: #fff; }
+
+.page-3d .sep { width: 1px; height: 24px; background: var(--border); margin: 0 4px; }
+
+/* ── MAIN ── */
+.page-3d #main {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+  position: relative;
+}
+
+.page-3d #canvas3d {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+}
+
+.page-3d #canvas3d canvas {
+  display: block;
+  width: 100% !important;
+  height: 100% !important;
+}
+
+/* 3D overlay labels (drei Html) — intentionally unscoped class rules */
+.device-label {
+  background: rgba(26,29,39,0.85);
+  border: 1px solid #2e3350;
+  border-radius: 4px;
+  color: #e2e8f0;
+  font-size: 11px;
+  padding: 2px 6px;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+.dim-label {
+  background: rgba(99,102,241,0.12);
+  border: 1px solid rgba(99,102,241,0.35);
+  border-radius: 3px;
+  color: #818cf8;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 7px;
+  pointer-events: none;
+  white-space: nowrap;
+  letter-spacing: 0.3px;
+}
+
+/* ── PROPERTIES PANEL ── */
+.page-3d #props {
+  width: var(--props-w);
+  background: var(--surface);
+  border-left: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  flex-shrink: 0;
+}
+
+.page-3d #props h3 {
+  padding: 10px 12px 6px;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--text-dim);
+  border-bottom: 1px solid var(--border);
+}
+
+.page-3d #props-content {
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.page-3d #props-empty {
+  padding: 24px 12px;
+  color: var(--text-dim);
+  font-size: 12px;
+  text-align: center;
+}
+
+.page-3d .prop-group { display: flex; flex-direction: column; gap: 4px; }
+.page-3d .prop-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.8px; color: var(--text-dim); }
+.page-3d .prop-input {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  padding: 6px 8px;
+  font-size: 12px;
+  outline: none;
+  width: 100%;
+  transition: border-color 0.15s;
+}
+.page-3d .prop-input:focus { border-color: var(--accent); }
+.page-3d select.prop-input option { background: var(--surface2); }
+
+.page-3d .prop-divider {
+  height: 1px;
+  background: var(--border);
+  margin: 4px 0;
+}
+
+.page-3d .prop-type-badge {
+  font-size: 11px;
+  color: var(--text-dim);
+  padding: 4px 0;
+}
+
+/* ── SETUP PREVIEW CANVAS ── */
+.page-3d #desk-preview {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  width: 100%;
+  height: 130px;
+}
+
+/* ── MODAL ── */
+.page-3d #modal-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.7);
+  z-index: 999;
+  align-items: center;
+  justify-content: center;
+}
+.page-3d #modal-overlay.open { display: flex; }
+
+.page-3d #modal {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 24px;
+  width: 380px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+}
+
+.page-3d #modal h2 { font-size: 15px; font-weight: 600; margin-bottom: 4px; }
+
+.page-3d .modal-section-label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--text-dim);
+  padding-top: 4px;
+}
+
+.page-3d .modal-row {
+  display: flex;
+  gap: 10px;
+}
+.page-3d .modal-row .prop-group { flex: 1; }
+
+.page-3d .modal-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-top: 8px;
+}
+
+.page-3d .btn {
+  padding: 7px 16px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+  font-size: 12px;
+  transition: all 0.15s;
+}
+.page-3d .btn:hover { background: var(--surface2); }
+.page-3d .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.page-3d .btn.primary:hover { background: var(--accent-hover); }
