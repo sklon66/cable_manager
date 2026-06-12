@@ -5,7 +5,7 @@ import { Html, OrbitControls, OrthographicCamera, PerspectiveCamera } from '@rea
 import { useSceneStore } from '../../stores/sceneStore';
 import { DESK_Y, bounds, computeFloorY, rectGridPositions } from '../../lib/desk';
 import DeviceBox from './DeviceBox';
-import Ports from './Ports';
+import Cables from './Cables';
 
 function Cameras() {
   const mode = useSceneStore(s => s.mode);
@@ -177,7 +177,7 @@ export default function Scene() {
       <Desk />
       <Floor />
       {devices.map(d => <DeviceBox key={d.id} device={d} />)}
-      <Ports />
+      <Cables />
     </Canvas>
   );
 }
