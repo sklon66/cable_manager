@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useSceneStore } from '../../stores/sceneStore';
 import { drawDeskPreview } from '../../lib/deskPreview';
-import { parseLayoutDoc } from '../../lib/persistence';
+import { parseLayoutDoc, saveScene3D } from '../../lib/persistence';
 import { showToast } from '../../stores/toastStore';
 import type { DeskConfig } from '../../types';
 
@@ -45,7 +45,13 @@ export default function DeskSetupModal() {
     reader.onload = ev => {
       try {
         const doc = parseLayoutDoc(JSON.parse(String(ev.target?.result)));
-        useSceneStore.getState().setRawData(doc);
+        if (doc.scene3d) {
+          // Full bundle: restore desk + sizes/positions/ports and start directly
+          saveScene3D(doc.scene3d);
+          useSceneStore.getState().init(doc);
+        } else {
+          useSceneStore.getState().setRawData(doc);
+        }
       } catch {
         showToast('Invalid JSON');
       }

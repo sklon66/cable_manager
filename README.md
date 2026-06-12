@@ -21,10 +21,12 @@ Note: the router uses `BrowserRouter`; static hosting without URL rewrites shoul
 
 State persists to localStorage under the same keys and formats as the original vanilla-JS version (now in `legacy/`):
 
-- `kvm-vis-state` — 2D layout `{ nextId, devices, cables }`; identical to the export/import JSON file format.
+- `kvm-vis-state` — 2D layout `{ nextId, devices, cables }`.
 - `kvm-3d-state` — desk config plus per-device 3D positions/dimensions and per-cable port/waypoint settings, overlaid by device id onto the 2D layout.
 
-Layouts exported from the legacy app import unchanged, and vice versa.
+The **Export** button writes both into one file: `{ nextId, devices, cables, scene3d: { desk, devices3d, cables3d } }`. Importing such a file (in either view) restores the 2D layout *and* all 3D sizes, positions, and port placements — no re-setup needed. Files from the legacy app (no `scene3d` key) still import, and legacy importers simply ignore the extra key.
+
+Note: 3D data is matched to devices by id, so editing a device keeps its 3D placement, but deleting and re-adding it creates a new id and resets its 3D placement.
 
 ## Keyboard shortcuts
 

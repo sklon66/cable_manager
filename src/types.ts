@@ -37,6 +37,8 @@ export interface LayoutDoc {
   nextId: number;
   devices: Device[];
   cables: Cable[];
+  /** Optional 3D scene bundle (desk, sizes/positions, ports) carried in export files. */
+  scene3d?: Scene3DDoc;
 }
 
 // ── 3D ──────────────────────────────────────────────────────────────────────

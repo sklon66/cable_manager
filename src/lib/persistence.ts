@@ -12,6 +12,12 @@ export function parseLayoutDoc(data: unknown): LayoutDoc {
     nextId: d.nextId ?? 1,
     devices: d.devices ?? [],
     cables: d.cables ?? [],
+    // 3D bundle is optional and only meaningful with a desk config
+    ...(d.scene3d?.desk ? { scene3d: {
+      desk: d.scene3d.desk,
+      devices3d: d.scene3d.devices3d ?? [],
+      cables3d: d.scene3d.cables3d ?? [],
+    } } : {}),
   };
 }
 
@@ -32,8 +38,21 @@ export function saveLayout(doc: LayoutDoc): void {
 }
 
 export function exportLayoutJSON(doc: LayoutDoc): void {
+  // Bundle the 3D scene (desk, device sizes/positions, ports) when one exists,
+  // so a single file restores both views. Legacy importers ignore the extra key.
+  const saved3d = loadScene3D();
+  const payload = {
+    nextId: doc.nextId,
+    devices: doc.devices,
+    cables: doc.cables,
+    ...(saved3d.desk ? { scene3d: {
+      desk: saved3d.desk,
+      devices3d: saved3d.devices3d,
+      cables3d: saved3d.cables3d,
+    } } : {}),
+  };
   const blob = new Blob(
-    [JSON.stringify({ nextId: doc.nextId, devices: doc.devices, cables: doc.cables }, null, 2)],
+    [JSON.stringify(payload, null, 2)],
     { type: 'application/json' },
   );
   const a = document.createElement('a');

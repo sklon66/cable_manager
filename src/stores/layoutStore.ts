@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import type { Cable, CableTypeName, Device, DeviceType, LayoutDoc, Mode2D, Selection, Waypoint } from '../types';
 import { DEFAULT_STATE, DEVICE_TYPES } from '../lib/constants';
-import { loadLayout, saveLayout } from '../lib/persistence';
+import { loadLayout, saveLayout, saveScene3D } from '../lib/persistence';
 import { waypointInsertIndex } from '../lib/geometry2d';
 import { showToast } from './toastStore';
 
@@ -193,6 +193,8 @@ export const useLayoutStore = create<LayoutState>((set, get) => ({
   setPanZoom: (pan, zoom) => set({ pan, zoom }),
 
   importDoc: doc => set(st => {
+    // Files exported with a 3D scene bundle restore the 3D view's storage too
+    if (doc.scene3d) saveScene3D(doc.scene3d);
     const next = { nextId: doc.nextId, devices: doc.devices, cables: doc.cables, selected: null };
     persist({ ...st, ...next });
     return next;
