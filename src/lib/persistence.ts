@@ -62,6 +62,22 @@ export function exportLayoutJSON(doc: LayoutDoc): void {
   URL.revokeObjectURL(a.href);
 }
 
+/** Read + leniently parse a layout JSON file; rejects on invalid JSON. */
+export function readLayoutFile(file: File): Promise<LayoutDoc> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = ev => {
+      try {
+        resolve(parseLayoutDoc(JSON.parse(String(ev.target?.result))));
+      } catch (e) {
+        reject(e);
+      }
+    };
+    reader.onerror = () => reject(reader.error);
+    reader.readAsText(file);
+  });
+}
+
 // ── 3D ──────────────────────────────────────────────────────────────────────
 
 export interface Scene3DSaved {

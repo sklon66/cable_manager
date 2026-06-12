@@ -2,7 +2,7 @@ import { useRef, type RefObject } from 'react';
 import { Link } from 'react-router-dom';
 import { useLayoutStore } from '../../stores/layoutStore';
 import { fitViewTransform, zoomAtPoint } from '../../lib/geometry2d';
-import { exportLayoutJSON, parseLayoutDoc } from '../../lib/persistence';
+import { exportLayoutJSON, readLayoutFile } from '../../lib/persistence';
 import { showToast } from '../../stores/toastStore';
 
 export default function Toolbar({ wrapRef }: { wrapRef: RefObject<HTMLDivElement> }) {
@@ -40,21 +40,17 @@ export default function Toolbar({ wrapRef }: { wrapRef: RefObject<HTMLDivElement
 
   const onExport = () => exportLayoutJSON(useLayoutStore.getState());
 
-  const onImportFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const onImportFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = ev => {
-      try {
-        const doc = parseLayoutDoc(JSON.parse(String(ev.target?.result)));
-        useLayoutStore.getState().importDoc(doc);
-        showToast('Layout imported');
-      } catch {
-        showToast('Failed to import — invalid JSON');
-      }
-    };
-    reader.readAsText(file);
     e.target.value = '';
+    if (!file) return;
+    try {
+      const doc = await readLayoutFile(file);
+      useLayoutStore.getState().importDoc(doc);
+      showToast('Layout imported');
+    } catch {
+      showToast('Failed to import — invalid JSON');
+    }
   };
 
   return (
