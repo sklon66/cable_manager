@@ -125,7 +125,7 @@ function Floor() {
   return (
     <group>
       <mesh geometry={geometry} position={[b.totalW / 2, fy - 0.25, b.totalD / 2]}>
-        <meshLambertMaterial color={0x141720} />
+        <meshLambertMaterial color={0x141720} transparent opacity={0.35} />
       </mesh>
       <lineSegments geometry={edges} position={[b.totalW / 2, fy - 0.25, b.totalD / 2]}>
         <lineBasicMaterial color={0x1e2235} />
