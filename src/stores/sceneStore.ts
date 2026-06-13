@@ -37,6 +37,7 @@ interface SceneState {
   devices: SceneDevice[];
   cables: SceneCable[];
   selected: number | null;
+  selectedWP: { cableId: number; wpIndex: number } | null;
   routed: boolean;
   labelsVisible: boolean;
   rawData: LayoutDoc | null;
@@ -53,6 +54,7 @@ interface SceneState {
   applyDeskAndStart: (desk: DeskConfig) => void;
   setMode: (mode: Mode3D) => void;
   setSelected: (id: number | null) => void;
+  setSelectedWP: (wp: { cableId: number; wpIndex: number } | null) => void;
   setDragging: (d: boolean) => void;
   moveDevice: (id: number, x: number, z: number) => void;
   updateDevice: (id: number, patch: Partial<SceneDevice>) => void;
@@ -64,6 +66,10 @@ interface SceneState {
   setPortFace: (cableId: number, isFrom: boolean, face: PortFace | null) => void;
   setPort: (cableId: number, isFrom: boolean, off: number, ht: number) => void;
   setWireless: (cableId: number, wireless: boolean) => void;
+  addUserWaypoint: (cableId: number, index: number, wp: Waypoint3D) => void;
+  moveUserWaypoint: (cableId: number, index: number, wp: Waypoint3D) => void;
+  removeUserWaypoint: (cableId: number, index: number) => void;
+  clearUserWaypoints: (cableId: number) => void;
 }
 
 function persist(s: Pick<SceneState, 'desk' | 'devices' | 'cables'>) {
@@ -148,6 +154,7 @@ export const useSceneStore = create<SceneState>((set, get) => ({
   devices: [],
   cables: [],
   selected: null,
+  selectedWP: null,
   routed: false,
   labelsVisible: true,
   rawData: null,
@@ -160,7 +167,7 @@ export const useSceneStore = create<SceneState>((set, get) => ({
     const desk = saved.desk ? { ...DEFAULT_DESK, ...saved.desk } : { ...DEFAULT_DESK };
     if (saved.desk) {
       const { devices, cables } = buildSceneFromLayout(rawData, desk);
-      set({ desk, rawData, devices, cables, started: true, setupOpen: false, mode: 'layout', routed: false, selected: null });
+      set({ desk, rawData, devices, cables, started: true, setupOpen: false, mode: 'layout', routed: false, selected: null, selectedWP: null });
     } else {
       set({ desk, rawData, started: false, setupOpen: true });
     }
@@ -172,16 +179,17 @@ export const useSceneStore = create<SceneState>((set, get) => ({
 
   applyDeskAndStart: desk => {
     const { devices, cables } = buildSceneFromLayout(get().rawData, desk);
-    set({ desk, devices, cables, started: true, setupOpen: false, mode: 'layout', routed: false, selected: null });
+    set({ desk, devices, cables, started: true, setupOpen: false, mode: 'layout', routed: false, selected: null, selectedWP: null });
     persist(get());
   },
 
   setMode: mode => set(mode === 'layout'
     // Entering layout clears routed ports (legacy switchToLayout → clearCables)
-    ? { mode, routed: false, selected: null }
-    : { mode, selected: null }),
+    ? { mode, routed: false, selected: null, selectedWP: null }
+    : { mode, selected: null, selectedWP: null }),
 
   setSelected: id => set({ selected: id }),
+  setSelectedWP: wp => set({ selectedWP: wp }),
   setDragging: dragging => set({ dragging }),
 
   moveDevice: (id, x, z) => set(st => ({
@@ -218,7 +226,7 @@ export const useSceneStore = create<SceneState>((set, get) => ({
     showToast(`Routed ${valid.length} cable${valid.length !== 1 ? 's' : ''}`);
   },
 
-  clearCables: () => set({ routed: false }),
+  clearCables: () => set({ routed: false, selectedWP: null }),
 
   toggleLabels: () => set(st => ({ labelsVisible: !st.labelsVisible })),
 
@@ -244,6 +252,52 @@ export const useSceneStore = create<SceneState>((set, get) => ({
 
   setWireless: (cableId, wireless) => set(st => {
     const next = { cables: st.cables.map(c => (c.id === cableId ? { ...c, wireless } : c)) };
+    persist({ ...st, ...next });
+    return next;
+  }),
+
+  addUserWaypoint: (cableId, index, wp) => set(st => {
+    const next = {
+      cables: st.cables.map(c => {
+        if (c.id !== cableId) return c;
+        const userWaypoints = [...c.userWaypoints];
+        userWaypoints.splice(index, 0, wp);
+        return { ...c, userWaypoints };
+      }),
+      selectedWP: { cableId, wpIndex: index },
+    };
+    persist({ ...st, ...next });
+    return next;
+  }),
+
+  moveUserWaypoint: (cableId, index, wp) => set(st => ({
+    cables: st.cables.map(c => {
+      if (c.id !== cableId) return c;
+      const userWaypoints = [...c.userWaypoints];
+      userWaypoints[index] = wp;
+      return { ...c, userWaypoints };
+    }),
+  })),
+
+  removeUserWaypoint: (cableId, index) => set(st => {
+    const next = {
+      cables: st.cables.map(c => {
+        if (c.id !== cableId) return c;
+        const userWaypoints = [...c.userWaypoints];
+        userWaypoints.splice(index, 1);
+        return { ...c, userWaypoints };
+      }),
+      selectedWP: null,
+    };
+    persist({ ...st, ...next });
+    return next;
+  }),
+
+  clearUserWaypoints: cableId => set(st => {
+    const next = {
+      cables: st.cables.map(c => (c.id === cableId ? { ...c, userWaypoints: [] } : c)),
+      selectedWP: null,
+    };
     persist({ ...st, ...next });
     return next;
   }),

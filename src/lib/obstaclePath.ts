@@ -1,16 +1,16 @@
-import * as THREE from 'three';
 import type { DeskConfig } from '../types';
 import { DESK_Y, bounds } from './desk';
+import { CABLE_RADIUS } from './autopath';
 import type { PortInfo } from './ports3d';
 
 // Cables run just above the desk surface and weave around device footprints,
 // so they never pass through another device or down into the table slab.
-const ROUTE_Y = DESK_Y + 0.5;
-const CELL = 4;          // grid resolution (cm)
-const PAD = 24;          // routable margin beyond the desk edge (cm)
-const OBST_EXPAND = 4;   // grow obstacle footprints so cables keep clear (>= CELL avoids slip-through)
-const CLEARANCE = 6;     // straight stub out of the port before the first turn
-const TURN = 1.5;        // A* turn penalty (in cell steps) — favors straighter routes
+export const ROUTE_Y = DESK_Y + 0.5;
+export const CLEARANCE = 6;       // straight stub out of the port before the first turn
+const CELL = 2;                   // grid resolution (cm) — matches device snap, tight hugging
+const PAD = 24;                   // routable margin beyond the desk edge (cm)
+const OBST_EXPAND = CABLE_RADIUS; // only the cable's own radius — cables hug device edges
+const TURN = 1.5;                 // A* turn penalty (in cell steps) — favors straighter routes
 
 export interface RouteObstacle {
   x: number; z: number; w: number; d: number;
@@ -18,7 +18,7 @@ export interface RouteObstacle {
   base: number; top: number; // world-Y vertical span
 }
 
-interface RoutePoint { x: number; z: number }
+export interface RoutePoint { x: number; z: number }
 
 /** Rotation-aware axis-aligned bounding box of a device footprint, grown by clearance. */
 function footprintAABB(o: RouteObstacle) {
@@ -57,8 +57,18 @@ class MinHeap<T extends { f: number }> {
   }
 }
 
-/** Orthogonal A* on the desk grid from start to end, avoiding obstacle footprints. */
-function routeAround(start: RoutePoint, end: RoutePoint, obstacles: RouteObstacle[], desk: DeskConfig): RoutePoint[] | null {
+interface Cell { ci: number; ri: number }
+
+interface Grid {
+  cols: number; rows: number; minX: number; minZ: number;
+  blocked: Uint8Array;
+  idx: (ci: number, ri: number) => number;
+  toFreeCell: (p: RoutePoint) => Cell;
+  cellWorld: (c: Cell) => RoutePoint;
+}
+
+/** Build the surface routing grid once; reused across all legs of a multi-anchor route. */
+function buildGrid(obstacles: RouteObstacle[], desk: DeskConfig): Grid {
   const b = bounds(desk);
   const minX = Math.min(0, b.mX0, b.eX0) - PAD;
   const minZ = -PAD;
@@ -83,11 +93,10 @@ function routeAround(start: RoutePoint, end: RoutePoint, obstacles: RouteObstacl
     }
   }
 
-  const toCell = (p: RoutePoint) => ({
-    ci: Math.max(0, Math.min(cols - 1, Math.round((p.x - minX) / CELL))),
-    ri: Math.max(0, Math.min(rows - 1, Math.round((p.z - minZ) / CELL))),
-  });
-  const nearestFree = (ci: number, ri: number) => {
+  const clamp = (v: number, hi: number) => Math.max(0, Math.min(hi, v));
+  const toFreeCell = (p: RoutePoint): Cell => {
+    const ci = clamp(Math.round((p.x - minX) / CELL), cols - 1);
+    const ri = clamp(Math.round((p.z - minZ) / CELL), rows - 1);
     if (!blocked[idx(ci, ri)]) return { ci, ri };
     for (let rad = 1; rad < Math.max(cols, rows); rad++) {
       for (let dr = -rad; dr <= rad; dr++) {
@@ -101,13 +110,16 @@ function routeAround(start: RoutePoint, end: RoutePoint, obstacles: RouteObstacl
     return { ci, ri };
   };
 
-  const sc = toCell(start), ec = toCell(end);
-  const s0 = nearestFree(sc.ci, sc.ri);
-  const e0 = nearestFree(ec.ci, ec.ri);
-  if (blocked[idx(e0.ci, e0.ri)]) return null;
+  const cellWorld = (c: Cell): RoutePoint => ({ x: minX + c.ci * CELL, z: minZ + c.ri * CELL });
+  return { cols, rows, minX, minZ, blocked, idx, toFreeCell, cellWorld };
+}
 
-  // A* over (cell, incoming-direction) states so turns can be penalized
-  const DIRS = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+const DIRS = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+
+/** Orthogonal, turn-penalized A* between two cells. Returns the full per-cell path. */
+function astar(grid: Grid, s0: Cell, e0: Cell): Cell[] | null {
+  const { cols, rows, blocked, idx } = grid;
+  if (blocked[idx(e0.ci, e0.ri)]) return null;
   const stateId = (ci: number, ri: number, dir: number) => (ri * cols + ci) * 5 + dir;
   const h = (ci: number, ri: number) => Math.abs(ci - e0.ci) + Math.abs(ri - e0.ri);
 
@@ -138,62 +150,41 @@ function routeAround(start: RoutePoint, end: RoutePoint, obstacles: RouteObstacl
   }
   if (endState < 0) return null;
 
-  const cells: RoutePoint[] = [];
+  const cells: Cell[] = [];
   let s: number | undefined = endState;
   while (s !== undefined) {
     const cell = Math.floor(s / 5);
-    cells.push({ x: minX + (cell % cols) * CELL, z: minZ + Math.floor(cell / cols) * CELL });
+    cells.push({ ci: cell % cols, ri: Math.floor(cell / cols) });
     s = came.get(s);
   }
   cells.reverse();
-
-  // Collapse collinear runs to corner points
-  const out: RoutePoint[] = [];
-  for (let i = 0; i < cells.length; i++) {
-    if (i > 0 && i < cells.length - 1) {
-      const a = cells[i - 1], b = cells[i], c = cells[i + 1];
-      if ((a.x === b.x && b.x === c.x) || (a.z === b.z && b.z === c.z)) continue;
-    }
-    out.push(cells[i]);
-  }
-  return out;
+  return cells;
 }
 
-function simplify3D(pts: THREE.Vector3[]): THREE.Vector3[] {
-  const dedup: THREE.Vector3[] = [];
-  for (const p of pts) if (!dedup.length || dedup[dedup.length - 1].distanceToSquared(p) > 1e-6) dedup.push(p);
-  const res: THREE.Vector3[] = [];
-  for (let i = 0; i < dedup.length; i++) {
-    if (i > 0 && i < dedup.length - 1) {
-      const d1 = new THREE.Vector3().subVectors(dedup[i], dedup[i - 1]).normalize();
-      const d2 = new THREE.Vector3().subVectors(dedup[i + 1], dedup[i]).normalize();
-      if (d1.dot(d2) > 0.9999) continue;
-    }
-    res.push(dedup[i]);
-  }
-  return res;
+/** XZ exit point a clearance step out of a port along its face normal. */
+export function portExit(p: PortInfo): RoutePoint {
+  return { x: p.x + p.nx * CLEARANCE, z: p.z + p.nz * CLEARANCE };
 }
 
 /**
- * Full obstacle-avoiding 3D path: port A → out along its normal → down to the
- * desk surface → A* around device footprints → up to port B → port B.
- * Returns null if no surface route exists (caller falls back to the direct autopath).
+ * Full surface cell path (world XZ at ROUTE_Y, one point per grid cell) from
+ * exitA through the ordered user waypoints to exitB, avoiding obstacle
+ * footprints with only 90° turns. Null if any leg is unreachable.
  */
-export function computeObstaclePath(
-  pA: PortInfo, pB: PortInfo, obstacles: RouteObstacle[], desk: DeskConfig,
-): THREE.Vector3[] | null {
-  const exitA = { x: pA.x + pA.nx * CLEARANCE, z: pA.z + pA.nz * CLEARANCE };
-  const exitB = { x: pB.x + pB.nx * CLEARANCE, z: pB.z + pB.nz * CLEARANCE };
-  const route = routeAround(exitA, exitB, obstacles, desk);
-  if (!route || !route.length) return null;
+export function computeSurfaceRoute(
+  exitA: RoutePoint, exitB: RoutePoint, waypoints: RoutePoint[],
+  obstacles: RouteObstacle[], desk: DeskConfig,
+): RoutePoint[] | null {
+  const grid = buildGrid(obstacles, desk);
+  const anchors = [exitA, ...waypoints, exitB].map(p => grid.toFreeCell(p));
 
-  const first = route[0], last = route[route.length - 1];
-  const pts: THREE.Vector3[] = [
-    new THREE.Vector3(pA.x, pA.y, pA.z),
-    new THREE.Vector3(first.x, pA.y, first.z),                       // stub at port height
-    ...route.map(r => new THREE.Vector3(r.x, ROUTE_Y, r.z)),         // surface run (incl. drop at start)
-    new THREE.Vector3(last.x, pB.y, last.z),                         // rise at end
-    new THREE.Vector3(pB.x, pB.y, pB.z),
-  ];
-  return simplify3D(pts);
+  const cells: Cell[] = [];
+  for (let i = 0; i < anchors.length - 1; i++) {
+    const leg = astar(grid, anchors[i], anchors[i + 1]);
+    if (!leg) return null;
+    // Drop the shared boundary cell between consecutive legs
+    for (let j = i === 0 ? 0 : 1; j < leg.length; j++) cells.push(leg[j]);
+  }
+  if (!cells.length) return null;
+  return cells.map(c => grid.cellWorld(c));
 }

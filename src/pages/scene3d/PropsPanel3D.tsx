@@ -64,9 +64,26 @@ function PortSections({ dev }: { dev: SceneDevice }) {
               />
               Wireless (straight, dotted)
             </label>
+            {!cable.wireless && cable.userWaypoints.length > 0 && (
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6, marginTop: 2 }}>
+                <span style={{ fontSize: 9, color: 'var(--text-dim)' }}>
+                  {cable.userWaypoints.length} routing point{cable.userWaypoints.length !== 1 ? 's' : ''}
+                </span>
+                <button
+                  className="btn"
+                  style={{ padding: '3px 8px', fontSize: 9 }}
+                  onClick={() => useSceneStore.getState().clearUserWaypoints(cable.id)}
+                >
+                  Clear
+                </button>
+              </div>
+            )}
           </div>
         );
       })}
+      <div className="prop-label" style={{ fontSize: 9, color: 'var(--text-dim)', marginTop: 2 }}>
+        Double-click a cable to add a routing point; drag it to move, select + Delete to remove.
+      </div>
     </>
   );
 }
