@@ -96,7 +96,9 @@ function DimLabel({ text, position, visible }: { text: string; position: [number
 
 function Desk() {
   const desk = useSceneStore(s => s.desk);
-  const labelsVisible = useSceneStore(s => s.labelsVisible);
+  const mode = useSceneStore(s => s.mode);
+  // The Labels toggle only exists in 3D mode; layout always shows labels
+  const labelsVisible = useSceneStore(s => s.labelsVisible) || mode === 'layout';
   const { main_w, main_d, ext_w, ext_d, ext_side } = desk;
   const b = bounds(desk);
   const hasExt = ext_w > 0 && ext_d > 0;

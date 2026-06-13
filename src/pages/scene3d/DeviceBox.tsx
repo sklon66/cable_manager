@@ -11,7 +11,8 @@ const deskPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -DESK_Y);
 export default function DeviceBox({ device }: { device: SceneDevice }) {
   const mode = useSceneStore(s => s.mode);
   const isSelected = useSceneStore(s => s.selected === device.id);
-  const labelsVisible = useSceneStore(s => s.labelsVisible);
+  // The Labels toggle only exists in 3D mode; layout always shows labels
+  const labelsVisible = useSceneStore(s => s.labelsVisible) || mode === 'layout';
   const startPlaneDrag = usePlaneDrag();
 
   const isLayout = mode !== '3d';
