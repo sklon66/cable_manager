@@ -56,6 +56,14 @@ function PortSections({ dev }: { dev: SceneDevice }) {
               <option value="f">Front</option>
               <option value="b">Back</option>
             </select>
+            <label style={{ fontSize: 9, color: 'var(--text-dim)', display: 'flex', alignItems: 'center', gap: 6, marginTop: 2 }}>
+              <input
+                type="checkbox"
+                checked={cable.wireless}
+                onChange={e => useSceneStore.getState().setWireless(cable.id, e.target.checked)}
+              />
+              Wireless (straight, dotted)
+            </label>
           </div>
         );
       })}

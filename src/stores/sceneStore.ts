@@ -25,6 +25,8 @@ export interface SceneCable {
   portOffB: number; portHtB: number | null; portFaceB: PortFace | null;
   /** Carried through from saved data for format compatibility; no UI uses it. */
   userWaypoints: Waypoint3D[];
+  /** Straight dotted line port-to-port (no turns) instead of autopath. */
+  wireless: boolean;
 }
 
 export type Mode3D = 'layout' | '3d';
@@ -61,6 +63,7 @@ interface SceneState {
   toggleLabels: () => void;
   setPortFace: (cableId: number, isFrom: boolean, face: PortFace | null) => void;
   setPort: (cableId: number, isFrom: boolean, off: number, ht: number) => void;
+  setWireless: (cableId: number, wireless: boolean) => void;
 }
 
 function persist(s: Pick<SceneState, 'desk' | 'devices' | 'cables'>) {
@@ -75,6 +78,7 @@ function persist(s: Pick<SceneState, 'desk' | 'devices' | 'cables'>) {
       portOffA: c.portOffA || 0, portHtA: c.portHtA ?? null, portFaceA: c.portFaceA || null,
       portOffB: c.portOffB || 0, portHtB: c.portHtB ?? null, portFaceB: c.portFaceB || null,
       userWaypoints: c.userWaypoints || [],
+      wireless: c.wireless || false,
     })),
   });
 }
@@ -92,6 +96,7 @@ function buildSceneFromLayout(rawData: LayoutDoc | null, desk: DeskConfig): { de
       portOffA: sv?.portOffA || 0, portHtA: sv?.portHtA ?? null, portFaceA: sv?.portFaceA || null,
       portOffB: sv?.portOffB || 0, portHtB: sv?.portHtB ?? null, portFaceB: sv?.portFaceB || null,
       userWaypoints: sv?.userWaypoints || [],
+      wireless: sv?.wireless || false,
     };
   });
 
@@ -236,4 +241,10 @@ export const useSceneStore = create<SceneState>((set, get) => ({
       return isFrom ? { ...c, portOffA: off, portHtA: ht } : { ...c, portOffB: off, portHtB: ht };
     }),
   })),
+
+  setWireless: (cableId, wireless) => set(st => {
+    const next = { cables: st.cables.map(c => (c.id === cableId ? { ...c, wireless } : c)) };
+    persist({ ...st, ...next });
+    return next;
+  }),
 }));

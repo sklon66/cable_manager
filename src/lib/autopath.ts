@@ -35,3 +35,8 @@ export function computeAutoPath(pA: PortInfo, pB: PortInfo): THREE.Vector3[] {
   }
   return out;
 }
+
+/** Wireless: a single straight segment directly from port A to port B. */
+export function computeStraightPath(pA: PortInfo, pB: PortInfo): THREE.Vector3[] {
+  return [new THREE.Vector3(pA.x, pA.y, pA.z), new THREE.Vector3(pB.x, pB.y, pB.z)];
+}

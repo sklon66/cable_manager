@@ -76,6 +76,8 @@ export interface Cable3D {
   portHtB: number | null;
   portFaceB: PortFace | null;
   userWaypoints: Waypoint3D[];
+  /** Draw as a straight dotted line port-to-port (no turns) instead of autopath. */
+  wireless?: boolean;
 }
 
 /** = kvm-3d-state */

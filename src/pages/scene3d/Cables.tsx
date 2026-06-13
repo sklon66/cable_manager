@@ -5,7 +5,7 @@ import { useSceneStore, type SceneCable, type SceneDevice } from '../../stores/s
 import { CABLE_TYPES } from '../../lib/constants';
 import { DESK_Y } from '../../lib/desk';
 import { getPort, type PortInfo } from '../../lib/ports3d';
-import { CABLE_RADIUS, computeAutoPath } from '../../lib/autopath';
+import { CABLE_RADIUS, computeAutoPath, computeStraightPath } from '../../lib/autopath';
 import { usePlaneDrag } from './usePlaneDrag';
 
 const UP = new THREE.Vector3(0, 1, 0);
@@ -37,6 +37,28 @@ function buildSegments(pts: THREE.Vector3[]): Segment[] {
   return segs;
 }
 
+/** Splits a straight a→b run into evenly spaced dash cylinders (wireless look). */
+function buildDashes(a: THREE.Vector3, b: THREE.Vector3, dashLen = 1.4, gapLen = 1.1): Segment[] {
+  const dir = new THREE.Vector3().subVectors(b, a);
+  const total = dir.length();
+  if (total < 1e-4) return [];
+  dir.normalize();
+  const quaternion = new THREE.Quaternion();
+  if (Math.abs(dir.dot(UP)) > 0.9999) {
+    if (dir.y < 0) quaternion.setFromAxisAngle(new THREE.Vector3(1, 0, 0), Math.PI);
+  } else {
+    quaternion.setFromUnitVectors(UP, dir);
+  }
+  const period = dashLen + gapLen;
+  const segs: Segment[] = [];
+  for (let t = 0; t < total - 1e-3; t += period) {
+    const length = Math.min(dashLen, total - t);
+    if (length < 0.05) continue;
+    segs.push({ position: a.clone().addScaledVector(dir, t + length / 2), quaternion, length });
+  }
+  return segs;
+}
+
 function CableRun({ pts, color }: { pts: THREE.Vector3[]; color: string }) {
   const segments = useMemo(() => buildSegments(pts), [pts]);
   return (
@@ -50,6 +72,20 @@ function CableRun({ pts, color }: { pts: THREE.Vector3[]; color: string }) {
       {pts.slice(1, -1).map((p, i) => (
         <mesh key={`j${i}`} position={p}>
           <sphereGeometry args={[CABLE_RADIUS, 8, 8]} />
+          <meshPhongMaterial color={color} />
+        </mesh>
+      ))}
+    </group>
+  );
+}
+
+function WirelessRun({ pts, color }: { pts: THREE.Vector3[]; color: string }) {
+  const dashes = useMemo(() => buildDashes(pts[0], pts[1]), [pts]);
+  return (
+    <group>
+      {dashes.map((seg, i) => (
+        <mesh key={`d${i}`} position={seg.position} quaternion={seg.quaternion}>
+          <cylinderGeometry args={[CABLE_RADIUS, CABLE_RADIUS, seg.length, 8]} />
           <meshPhongMaterial color={color} />
         </mesh>
       ))}
@@ -107,12 +143,15 @@ function Connection({ cable, devA, devB }: { cable: SceneCable; devA: SceneDevic
   const { portA, portB, pts } = useMemo(() => {
     const portA = getPort(devA, devB, cable.portOffA || 0, cable.portHtA ?? null, cable.portFaceA || null);
     const portB = getPort(devB, devA, cable.portOffB || 0, cable.portHtB ?? null, cable.portFaceB || null);
-    return { portA, portB, pts: computeAutoPath(portA, portB) };
+    const pts = cable.wireless ? computeStraightPath(portA, portB) : computeAutoPath(portA, portB);
+    return { portA, portB, pts };
   }, [cable, devA, devB]);
 
   return (
     <group>
-      <CableRun pts={pts} color={color} />
+      {cable.wireless
+        ? <WirelessRun pts={pts} color={color} />
+        : <CableRun pts={pts} color={color} />}
       <PortMarker cable={cable} port={portA} isFromPort dev={devA} color={color} />
       <PortMarker cable={cable} port={portB} isFromPort={false} dev={devB} color={color} />
     </group>
