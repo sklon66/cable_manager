@@ -6,6 +6,7 @@ import { CABLE_TYPES } from '../../lib/constants';
 import { DESK_Y } from '../../lib/desk';
 import { getPort, type PortInfo } from '../../lib/ports3d';
 import { CABLE_RADIUS, computeAutoPath, computeStraightPath } from '../../lib/autopath';
+import { computeObstaclePath } from '../../lib/obstaclePath';
 import { usePlaneDrag } from './usePlaneDrag';
 
 const UP = new THREE.Vector3(0, 1, 0);
@@ -136,16 +137,31 @@ function PortMarker({ cable, port, isFromPort, dev, color }: {
   );
 }
 
-function Connection({ cable, devA, devB }: { cable: SceneCable; devA: SceneDevice; devB: SceneDevice }) {
+function Connection({ cable, devA, devB, devices }: {
+  cable: SceneCable; devA: SceneDevice; devB: SceneDevice; devices: SceneDevice[];
+}) {
+  const desk = useSceneStore(s => s.desk);
   const color = (CABLE_TYPES[cable.cableType] ?? CABLE_TYPES.Other).color;
-  // getPort is pure — ports move only when the devices or port settings change,
-  // all of which arrive as new store objects, so memoizing on them is sound
+  // getPort is pure; obstacle routing depends on every other device, so the
+  // whole devices array (a fresh object per store update) gates recompute
   const { portA, portB, pts } = useMemo(() => {
     const portA = getPort(devA, devB, cable.portOffA || 0, cable.portHtA ?? null, cable.portFaceA || null);
     const portB = getPort(devB, devA, cable.portOffB || 0, cable.portHtB ?? null, cable.portFaceB || null);
-    const pts = cable.wireless ? computeStraightPath(portA, portB) : computeAutoPath(portA, portB);
+    let pts: THREE.Vector3[];
+    if (cable.wireless) {
+      pts = computeStraightPath(portA, portB);
+    } else {
+      // Every device except the two endpoints is an obstacle to route around
+      const obstacles = devices
+        .filter(d => d.id !== devA.id && d.id !== devB.id)
+        .map(d => ({
+          x: d.x, z: d.z, w: d.w, d: d.d, rotation: d.rotation,
+          base: DESK_Y + (d.elevation || 0), top: DESK_Y + (d.elevation || 0) + d.h,
+        }));
+      pts = computeObstaclePath(portA, portB, obstacles, desk) ?? computeAutoPath(portA, portB);
+    }
     return { portA, portB, pts };
-  }, [cable, devA, devB]);
+  }, [cable, devA, devB, devices, desk]);
 
   return (
     <group>
@@ -174,7 +190,7 @@ export default function Cables() {
         const devA = devMap.get(c.fromId);
         const devB = devMap.get(c.toId);
         if (!devA || !devB) return null;
-        return <Connection key={c.id} cable={c} devA={devA} devB={devB} />;
+        return <Connection key={c.id} cable={c} devA={devA} devB={devB} devices={devices} />;
       })}
     </group>
   );
