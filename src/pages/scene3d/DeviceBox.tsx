@@ -23,8 +23,24 @@ export default function DeviceBox({ device }: { device: SceneDevice }) {
 
   const onPointerDown = (e: ThreeEvent<PointerEvent>) => {
     if (e.button !== 0) return;
-    e.stopPropagation();
     const s = useSceneStore.getState();
+
+    // Layout mode flattens every device to the same height, so overlapping
+    // footprints are hit at the same distance and the bigger box often wins.
+    // Prefer the smallest-footprint device under the cursor so a small device
+    // resting on a large one is selectable. (3D keeps closest-wins.)
+    if (s.mode === 'layout') {
+      const hits = e.intersections.filter(i => i.object.userData?.isDevice);
+      if (hits.length > 1) {
+        let best = hits[0];
+        for (const h of hits) {
+          if (h.object.userData.footprint < best.object.userData.footprint) best = h;
+        }
+        if (best.object.userData.deviceId !== device.id) return; // let the smaller one handle it
+      }
+    }
+
+    e.stopPropagation();
     s.setSelected(device.id);
     if (s.mode !== 'layout') return;
 
@@ -50,6 +66,7 @@ export default function DeviceBox({ device }: { device: SceneDevice }) {
       position={[device.x + device.w / 2, posY, device.z + device.d / 2]}
       rotation-y={-(device.rotation || 0) * Math.PI / 180}
       onPointerDown={onPointerDown}
+      userData={{ isDevice: true, deviceId: device.id, footprint: device.w * device.d }}
     >
       <meshLambertMaterial color={device.color} />
       <lineSegments geometry={edges}>
