@@ -14,12 +14,18 @@ export default function Scene3DPage() {
     useSceneStore.getState().init(loadLayoutRaw());
   }, []);
 
-  // R rotates the selected device; Delete removes the selected routing waypoint
+  // R rotates the selected device; Delete removes the selected routing waypoint;
+  // Esc clears the current device/waypoint selection
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       const tag = (e.target as HTMLElement).tagName;
       if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
       const s = useSceneStore.getState();
+      if (e.key === 'Escape') {
+        s.setSelected(null);
+        s.setSelectedWP(null);
+        return;
+      }
       if ((e.key === 'Delete' || e.key === 'Backspace') && s.selectedWP) {
         s.removeUserWaypoint(s.selectedWP.cableId, s.selectedWP.wpIndex);
         return;

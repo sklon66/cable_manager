@@ -4,7 +4,7 @@ import type { ThreeEvent } from '@react-three/fiber';
 import { useSceneStore, type SceneCable, type SceneDevice } from '../../stores/sceneStore';
 import type { DeskConfig } from '../../types';
 import { CABLE_TYPES } from '../../lib/constants';
-import { DESK_Y, snapCm } from '../../lib/desk';
+import { DESK_Y, snapCm, isOnDesk } from '../../lib/desk';
 import { distToSegment } from '../../lib/geometry2d';
 import { getPort, type PortInfo } from '../../lib/ports3d';
 import { CABLE_RADIUS, computeAutoPath, computeStraightPath } from '../../lib/autopath';
@@ -13,6 +13,10 @@ import { usePlaneDrag } from './usePlaneDrag';
 
 const UP = new THREE.Vector3(0, 1, 0);
 const routePlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -ROUTE_Y);
+
+// Segments where two or more cables run together are drawn near-black — that is where
+// a sleeve would wrap the bundle, so the dark stretches mark exactly where to add one.
+const SLEEVE_COLOR = '#0a0a0a';
 
 interface Seg { position: THREE.Vector3; quaternion: THREE.Quaternion; length: number }
 
@@ -62,6 +66,15 @@ const edgeKey = (a: RoutePoint, b: RoutePoint) => {
   return ka < kb ? `${ka}|${kb}` : `${kb}|${ka}`;
 };
 
+// A cable's run height: on the desk surface, or low when an endpoint is below the table.
+const runHeight = (pA: PortInfo, pB: PortInfo) => Math.min(ROUTE_Y, pA.y, pB.y);
+const cellHeight = (desk: DeskConfig, c: RoutePoint, runY: number) =>
+  (isOnDesk(desk, c.x, c.z) ? ROUTE_Y : runY);
+// Overlap key includes a height band (~2cm) so cables crossing the same spot at
+// different heights aren't counted as one bundle — only stacked-together runs are.
+const edgeKeyH = (a: RoutePoint, b: RoutePoint, ya: number, yb: number) =>
+  `${edgeKey(a, b)}@${Math.round((ya + yb) / 4)}`;
+
 // ── routing data assembled once for all cables ──────────────────────────────
 
 type CableRender =
@@ -98,8 +111,10 @@ function computeAll(cables: SceneCable[], devices: SceneDevice[], desk: DeskConf
 
     if (cells && cells.length) {
       perCable.push({ kind: 'surface', cable, color, portA, portB, cells });
+      const runY = runHeight(portA, portB);
       for (let i = 0; i < cells.length - 1; i++) {
-        const k = edgeKey(cells[i], cells[i + 1]);
+        const ya = cellHeight(desk, cells[i], runY), yb = cellHeight(desk, cells[i + 1], runY);
+        const k = edgeKeyH(cells[i], cells[i + 1], ya, yb);
         edgeCount.set(k, (edgeCount.get(k) ?? 0) + 1);
       }
     } else {
@@ -111,43 +126,74 @@ function computeAll(cables: SceneCable[], devices: SceneDevice[], desk: DeskConf
 
 // ── rendering ───────────────────────────────────────────────────────────────
 
-function Cylinders({ segs, radius, color, onDoubleClick }: {
-  segs: Seg[]; radius: number; color: string; onDoubleClick?: (e: ThreeEvent<MouseEvent>) => void;
+/** How a cable is drawn relative to the current device selection. */
+type Emphasis = 'normal' | 'on' | 'dim';
+
+/** Phong material props for a cable: glow when its device is selected, fade the rest.
+ *  `transparent` stays true in every state — toggling it at runtime needs a shader
+ *  recompile that R3F won't trigger, so we only vary opacity (which updates live). */
+function cableMat(color: string, emphasis: Emphasis) {
+  const dim = emphasis === 'dim';
+  return {
+    color,
+    transparent: true,
+    opacity: dim ? 0.5 : 1,
+    depthWrite: !dim,
+    emissive: emphasis === 'on' ? color : '#000000',
+    emissiveIntensity: emphasis === 'on' ? 0.55 : 0,
+  };
+}
+
+/** Port-tab material: a glowing handle that follows its cable's emphasis. */
+function portMat(color: string, emphasis: Emphasis) {
+  const dim = emphasis === 'dim';
+  return {
+    color,
+    transparent: true,
+    opacity: dim ? 0.5 : 1,
+    depthWrite: !dim,
+    emissive: color,
+    emissiveIntensity: emphasis === 'on' ? 0.6 : dim ? 0.15 : 0.4,
+  };
+}
+
+function Cylinders({ segs, radius, color, emphasis = 'normal', onDoubleClick }: {
+  segs: Seg[]; radius: number; color: string; emphasis?: Emphasis; onDoubleClick?: (e: ThreeEvent<MouseEvent>) => void;
 }) {
   return (
     <>
       {segs.map((s, i) => (
         <mesh key={i} position={s.position} quaternion={s.quaternion} onDoubleClick={onDoubleClick}>
           <cylinderGeometry args={[radius, radius, s.length, 8]} />
-          <meshPhongMaterial color={color} />
+          <meshPhongMaterial {...cableMat(color, emphasis)} />
         </mesh>
       ))}
     </>
   );
 }
 
-function CableRun({ pts, color }: { pts: THREE.Vector3[]; color: string }) {
+function CableRun({ pts, color, emphasis = 'normal' }: { pts: THREE.Vector3[]; color: string; emphasis?: Emphasis }) {
   const segments = useMemo(() => buildSegments(pts), [pts]);
   return (
     <group>
-      <Cylinders segs={segments} radius={CABLE_RADIUS} color={color} />
+      <Cylinders segs={segments} radius={CABLE_RADIUS} color={color} emphasis={emphasis} />
       {pts.slice(1, -1).map((p, i) => (
         <mesh key={`j${i}`} position={p}>
           <sphereGeometry args={[CABLE_RADIUS, 8, 8]} />
-          <meshPhongMaterial color={color} />
+          <meshPhongMaterial {...cableMat(color, emphasis)} />
         </mesh>
       ))}
     </group>
   );
 }
 
-function WirelessRun({ pts, color }: { pts: THREE.Vector3[]; color: string }) {
+function WirelessRun({ pts, color, emphasis = 'normal' }: { pts: THREE.Vector3[]; color: string; emphasis?: Emphasis }) {
   const dashes = useMemo(() => buildDashes(pts[0], pts[1]), [pts]);
-  return <group><Cylinders segs={dashes} radius={CABLE_RADIUS} color={color} /></group>;
+  return <group><Cylinders segs={dashes} radius={CABLE_RADIUS} color={color} emphasis={emphasis} /></group>;
 }
 
-function PortMarker({ cable, port, isFromPort, dev, color }: {
-  cable: SceneCable; port: PortInfo; isFromPort: boolean; dev: SceneDevice; color: string;
+function PortMarker({ cable, port, isFromPort, dev, color, emphasis = 'normal' }: {
+  cable: SceneCable; port: PortInfo; isFromPort: boolean; dev: SceneDevice; color: string; emphasis?: Emphasis;
 }) {
   const startPlaneDrag = usePlaneDrag();
   const onPointerDown = (e: ThreeEvent<PointerEvent>) => {
@@ -178,7 +224,7 @@ function PortMarker({ cable, port, isFromPort, dev, color }: {
       onPointerDown={onPointerDown}
     >
       <boxGeometry args={[2.5, 2.5, 0.5]} />
-      <meshPhongMaterial color={color} emissive={color} emissiveIntensity={0.4} />
+      <meshPhongMaterial {...portMat(color, emphasis)} />
     </mesh>
   );
 }
@@ -199,63 +245,83 @@ function WaypointMarker({ cableId, index, point, selected, color }: {
   };
   return (
     <mesh position={point} onPointerDown={onPointerDown}>
-      <sphereGeometry args={[selected ? 2.4 : 1.8, 12, 12]} />
+      <sphereGeometry args={[selected ? 1.2 : 0.9, 12, 12]} />
       <meshPhongMaterial color={selected ? '#ffffff' : color} emissive={color} emissiveIntensity={selected ? 0.5 : 0.3} />
     </mesh>
   );
 }
 
 /** Surface run rendered with per-segment radius scaled by how many cables share each edge. */
-function SurfaceConnection({ cr, edgeCount }: { cr: Extract<CableRender, { kind: 'surface' }>; edgeCount: Map<string, number> }) {
+function SurfaceConnection({ cr, edgeCount, desk, emphasis = 'normal' }: { cr: Extract<CableRender, { kind: 'surface' }>; edgeCount: Map<string, number>; desk: DeskConfig; emphasis?: Emphasis }) {
   const { cable, color, portA, portB, cells } = cr;
   const selectedWP = useSceneStore(s => s.selectedWP);
 
+  // A port below the table keeps the cable low instead of rising onto the desktop
+  // first. The run drops to the lower endpoint while it is OFF the desk footprint,
+  // but stays at the desk surface where it crosses over the desktop so it never
+  // passes through the table slab — it climbs to the surface at the desk edge.
+  const runY = runHeight(portA, portB);
+  const cellY = (c: RoutePoint) => cellHeight(desk, c, runY);
+
   const { stubSegs, runSegs, joints } = useMemo(() => {
+    const countFor = (a: RoutePoint, b: RoutePoint) => edgeCount.get(edgeKeyH(a, b, cellY(a), cellY(b))) ?? 1;
     const radiusFor = (a: RoutePoint, b: RoutePoint) => {
-      const count = edgeCount.get(edgeKey(a, b)) ?? 1;
+      const count = countFor(a, b);
       const off = count > 1 ? (cable.id % 4) * 0.04 : 0; // nest overlapping cables to avoid z-fighting
       return CABLE_RADIUS * Math.sqrt(count) - off;
     };
-    const pts3 = cells.map(c => new THREE.Vector3(c.x, ROUTE_Y, c.z));
+    const pts3 = cells.map(c => new THREE.Vector3(c.x, cellY(c), c.z));
     const first = cells[0], last = cells[cells.length - 1];
 
-    // Port stubs + vertical drops at base radius
+    // Port stubs + vertical drops at base radius — rise/drop to the run's local height
     const stubs = [
       ...buildSegments([
         new THREE.Vector3(portA.x, portA.y, portA.z),
         new THREE.Vector3(first.x, portA.y, first.z),
-        new THREE.Vector3(first.x, ROUTE_Y, first.z),
+        new THREE.Vector3(first.x, pts3[0].y, first.z),
       ]),
       ...buildSegments([
-        new THREE.Vector3(last.x, ROUTE_Y, last.z),
+        new THREE.Vector3(last.x, pts3[pts3.length - 1].y, last.z),
         new THREE.Vector3(last.x, portB.y, last.z),
         new THREE.Vector3(portB.x, portB.y, portB.z),
       ]),
     ];
 
-    // Surface run: merge consecutive edges sharing direction + radius into one cylinder
+    // Surface run: merge consecutive edges sharing direction + radius into one cylinder.
+    // Only merge level (constant-height) edges so the slopes that climb onto the desk
+    // stay intact instead of being collapsed into a straight diagonal.
     const edgeR: number[] = [];
-    for (let i = 0; i < cells.length - 1; i++) edgeR.push(radiusFor(cells[i], cells[i + 1]));
+    const edgeN: number[] = [];
+    for (let i = 0; i < cells.length - 1; i++) {
+      edgeR.push(radiusFor(cells[i], cells[i + 1]));
+      edgeN.push(countFor(cells[i], cells[i + 1]));
+    }
     const dirKey = (i: number) => `${Math.sign(cells[i + 1].x - cells[i].x)},${Math.sign(cells[i + 1].z - cells[i].z)}`;
+    const level = (i: number) => pts3[i].y === pts3[i + 1].y;
 
-    const runSegs: { s: Seg; r: number }[] = [];
+    const runSegs: { s: Seg; r: number; shared: boolean }[] = [];
     let i = 0;
     while (i < edgeR.length) {
       let j = i;
-      while (j + 1 < edgeR.length && dirKey(j + 1) === dirKey(i) && Math.abs(edgeR[j + 1] - edgeR[i]) < 1e-6) j++;
-      runSegs.push({ s: seg(pts3[i], pts3[j + 1]), r: edgeR[i] });
+      if (level(i)) {
+        while (j + 1 < edgeR.length && level(j + 1) && pts3[j + 1].y === pts3[i].y
+          && dirKey(j + 1) === dirKey(i) && Math.abs(edgeR[j + 1] - edgeR[i]) < 1e-6) j++;
+      }
+      runSegs.push({ s: seg(pts3[i], pts3[j + 1]), r: edgeR[i], shared: edgeN[i] > 1 });
       i = j + 1;
     }
 
     // Joints fill corners (incl. the drop/rise corners at the ends)
-    const joints: { p: THREE.Vector3; r: number }[] = [];
+    const joints: { p: THREE.Vector3; r: number; shared: boolean }[] = [];
     for (let k = 0; k < pts3.length; k++) {
       const rPrev = k > 0 ? edgeR[k - 1] : CABLE_RADIUS;
       const rNext = k < edgeR.length ? edgeR[k] : CABLE_RADIUS;
-      joints.push({ p: pts3[k], r: Math.max(rPrev, rNext) });
+      const nPrev = k > 0 ? edgeN[k - 1] : 1;
+      const nNext = k < edgeN.length ? edgeN[k] : 1;
+      joints.push({ p: pts3[k], r: Math.max(rPrev, rNext), shared: Math.max(nPrev, nNext) > 1 });
     }
     return { stubSegs: stubs, runSegs, joints };
-  }, [cable.id, cells, portA, portB, edgeCount]);
+  }, [cable.id, cells, portA, portB, runY, desk, edgeCount]);
 
   const onDoubleClick = (e: ThreeEvent<MouseEvent>) => {
     e.stopPropagation();
@@ -273,27 +339,28 @@ function SurfaceConnection({ cr, edgeCount }: { cr: Extract<CableRender, { kind:
 
   return (
     <group>
-      <Cylinders segs={stubSegs} radius={CABLE_RADIUS} color={color} />
+      <Cylinders segs={stubSegs} radius={CABLE_RADIUS} color={color} emphasis={emphasis} />
       {runSegs.map((rs, i) => (
         <mesh key={i} position={rs.s.position} quaternion={rs.s.quaternion} onDoubleClick={onDoubleClick}>
           <cylinderGeometry args={[rs.r, rs.r, rs.s.length, 8]} />
-          <meshPhongMaterial color={color} />
+          <meshPhongMaterial {...cableMat(rs.shared ? SLEEVE_COLOR : color, rs.shared ? 'normal' : emphasis)} />
         </mesh>
       ))}
       {joints.map((jt, i) => (
         <mesh key={`j${i}`} position={jt.p} onDoubleClick={onDoubleClick}>
           <sphereGeometry args={[jt.r, 8, 8]} />
-          <meshPhongMaterial color={color} />
+          <meshPhongMaterial {...cableMat(jt.shared ? SLEEVE_COLOR : color, jt.shared ? 'normal' : emphasis)} />
         </mesh>
       ))}
-      <PortMarker cable={cable} port={portA} isFromPort dev={{ id: cable.fromId } as SceneDevice} color={color} />
-      <PortMarker cable={cable} port={portB} isFromPort={false} dev={{ id: cable.toId } as SceneDevice} color={color} />
-      {cable.userWaypoints.map((w, i) => (
+      <PortMarker cable={cable} port={portA} isFromPort dev={{ id: cable.fromId } as SceneDevice} color={color} emphasis={emphasis} />
+      <PortMarker cable={cable} port={portB} isFromPort={false} dev={{ id: cable.toId } as SceneDevice} color={color} emphasis={emphasis} />
+      {/* Routing-point handles show only on cables wired to the selected device */}
+      {emphasis === 'on' && cable.userWaypoints.map((w, i) => (
         <WaypointMarker
           key={i}
           cableId={cable.id}
           index={i}
-          point={new THREE.Vector3(w.x, ROUTE_Y, w.z)}
+          point={new THREE.Vector3(w.x, cellY(w), w.z)}
           selected={selectedWP?.cableId === cable.id && selectedWP.wpIndex === i}
           color={color}
         />
@@ -302,15 +369,15 @@ function SurfaceConnection({ cr, edgeCount }: { cr: Extract<CableRender, { kind:
   );
 }
 
-function Connection({ cr, edgeCount }: { cr: CableRender; edgeCount: Map<string, number> }) {
-  if (cr.kind === 'surface') return <SurfaceConnection cr={cr} edgeCount={edgeCount} />;
+function Connection({ cr, edgeCount, desk, emphasis }: { cr: CableRender; edgeCount: Map<string, number>; desk: DeskConfig; emphasis: Emphasis }) {
+  if (cr.kind === 'surface') return <SurfaceConnection cr={cr} edgeCount={edgeCount} desk={desk} emphasis={emphasis} />;
   return (
     <group>
       {cr.kind === 'wireless'
-        ? <WirelessRun pts={cr.pts} color={cr.color} />
-        : <CableRun pts={cr.pts} color={cr.color} />}
-      <PortMarker cable={cr.cable} port={cr.portA} isFromPort dev={{ id: cr.cable.fromId } as SceneDevice} color={cr.color} />
-      <PortMarker cable={cr.cable} port={cr.portB} isFromPort={false} dev={{ id: cr.cable.toId } as SceneDevice} color={cr.color} />
+        ? <WirelessRun pts={cr.pts} color={cr.color} emphasis={emphasis} />
+        : <CableRun pts={cr.pts} color={cr.color} emphasis={emphasis} />}
+      <PortMarker cable={cr.cable} port={cr.portA} isFromPort dev={{ id: cr.cable.fromId } as SceneDevice} color={cr.color} emphasis={emphasis} />
+      <PortMarker cable={cr.cable} port={cr.portB} isFromPort={false} dev={{ id: cr.cable.toId } as SceneDevice} color={cr.color} emphasis={emphasis} />
     </group>
   );
 }
@@ -323,14 +390,22 @@ export default function Cables() {
   const cables = useSceneStore(s => s.cables);
   const devices = useSceneStore(s => s.devices);
   const desk = useSceneStore(s => s.desk);
+  const selected = useSceneStore(s => s.selected);
 
   const active = mode === '3d' && routed;
   const data = useMemo(() => (active ? computeAll(cables, devices, desk) : null), [active, cables, devices, desk]);
   if (!data) return null;
 
+  // With a device selected, glow the cables wired to it and fade the rest.
+  const emphasisFor = (cr: CableRender): Emphasis =>
+    selected == null ? 'normal'
+      : (cr.cable.fromId === selected || cr.cable.toId === selected) ? 'on' : 'dim';
+
   return (
     <group>
-      {data.perCable.map((cr, i) => <Connection key={cr.cable?.id ?? i} cr={cr} edgeCount={data.edgeCount} />)}
+      {data.perCable.map((cr, i) => (
+        <Connection key={cr.cable?.id ?? i} cr={cr} edgeCount={data.edgeCount} desk={desk} emphasis={emphasisFor(cr)} />
+      ))}
     </group>
   );
 }
