@@ -8,7 +8,7 @@ const Scene3DPage = lazy(() => import('./pages/scene3d/Scene3DPage'));
 
 export default function App() {
   return (
-    <BrowserRouter>
+    <BrowserRouter basename={import.meta.env.BASE_URL}>
       <Routes>
         <Route path="/" element={<Editor2DPage />} />
         <Route path="/3d" element={<Suspense fallback={null}><Scene3DPage /></Suspense>} />
