@@ -1,5 +1,5 @@
 import { useRef } from 'react';
-import { Link } from 'react-router-dom';
+import NavMenu from '../../components/NavMenu';
 import { useSceneStore } from '../../stores/sceneStore';
 import { useLayoutStore } from '../../stores/layoutStore';
 import { exportLayoutJSON, readLayoutFile } from '../../lib/persistence';
@@ -33,35 +33,34 @@ export default function Toolbar3D() {
     <div id="toolbar">
       <span className="logo">⌨ CableManager5000</span>
 
-      <Link className="tool-btn" title="Back to 2D tool" to="/">← 2D Tool</Link>
-      {mode === 'layout' && (
-        <button className="tool-btn" title="Edit desk dimensions" onClick={() => s().openSetup()}>⚙ Desk</button>
-      )}
+      <NavMenu />
 
-      <div className="sep" />
+      <div className="op-menu">
+        {mode === 'layout' && (
+          <>
+            <button className="tool-btn" title="Edit desk dimensions" onClick={() => s().openSetup()}>⚙ Desk</button>
+            <div className="sep" />
+          </>
+        )}
+        {mode === '3d' && (
+          <>
+            <button className="tool-btn" title="Route cables" onClick={() => s().routeCables()}>Route Cables</button>
+            <button className="tool-btn danger" title="Clear cables" onClick={() => s().clearCables()}>Clear Cables</button>
+            <button
+              className={`tool-btn ${labelsVisible ? 'active' : ''}`}
+              title="Toggle labels"
+              onClick={() => s().toggleLabels()}
+            >
+              Labels
+            </button>
+            <div className="sep" />
+          </>
+        )}
 
-      {mode === 'layout' ? (
-        <button className="tool-btn" title="Switch to 3D view" onClick={() => s().setMode('3d')}>Switch to 3D →</button>
-      ) : (
-        <>
-          <button className="tool-btn" title="Back to layout" onClick={() => s().setMode('layout')}>← Layout</button>
-          <button className="tool-btn" title="Route cables" onClick={() => s().routeCables()}>Route Cables</button>
-          <button className="tool-btn danger" title="Clear cables" onClick={() => s().clearCables()}>Clear Cables</button>
-          <button
-            className={`tool-btn ${labelsVisible ? 'active' : ''}`}
-            title="Toggle labels"
-            onClick={() => s().toggleLabels()}
-          >
-            Labels
-          </button>
-        </>
-      )}
-
-      <div className="sep" />
-
-      <button className="tool-btn" title="Import JSON" onClick={() => fileRef.current?.click()}>Import</button>
-      <button className="tool-btn" title="Export JSON" onClick={onExport}>Export</button>
-      <input ref={fileRef} type="file" accept=".json" style={{ display: 'none' }} onChange={onImportFile} />
+        <button className="tool-btn" title="Import JSON" onClick={() => fileRef.current?.click()}>Import</button>
+        <button className="tool-btn" title="Export JSON" onClick={onExport}>Export</button>
+        <input ref={fileRef} type="file" accept=".json" style={{ display: 'none' }} onChange={onImportFile} />
+      </div>
     </div>
   );
 }

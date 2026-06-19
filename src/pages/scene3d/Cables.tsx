@@ -298,13 +298,31 @@ function SurfaceConnection({ cr, edgeCount, desk, emphasis = 'normal' }: { cr: E
     }
     const dirKey = (i: number) => `${Math.sign(cells[i + 1].x - cells[i].x)},${Math.sign(cells[i + 1].z - cells[i].z)}`;
     const level = (i: number) => pts3[i].y === pts3[i + 1].y;
+    // A surface step is the desk-edge rise/fall (run height changes between cells),
+    // as opposed to a tent ramp where the desk-surface height is the same on both
+    // sides and only a raised routing point lifts it.
+    const surfaceStep = (i: number) => cellY(cells[i]) !== cellY(cells[i + 1]);
 
     const runSegs: { s: Seg; r: number; shared: boolean }[] = [];
+    const stepJoints: { p: THREE.Vector3; r: number; shared: boolean }[] = [];
     let i = 0;
     while (i < edgeR.length) {
+      // Rise/fall at the desk edge: draw it as an L — travel at the high (desk)
+      // height, then a clean vertical riser dropped just off the desk edge — so
+      // it never slants sideways or slices through the table slab.
+      if (surfaceStep(i)) {
+        const loPt = cellY(cells[i]) < cellY(cells[i + 1]) ? pts3[i] : pts3[i + 1];
+        const corner = new THREE.Vector3(loPt.x, Math.max(pts3[i].y, pts3[i + 1].y), loPt.z);
+        const shared = edgeN[i] > 1;
+        runSegs.push({ s: seg(pts3[i], corner), r: edgeR[i], shared });
+        runSegs.push({ s: seg(corner, pts3[i + 1]), r: edgeR[i], shared });
+        stepJoints.push({ p: corner, r: edgeR[i], shared });
+        i++;
+        continue;
+      }
       let j = i;
       if (level(i)) {
-        while (j + 1 < edgeR.length && level(j + 1) && pts3[j + 1].y === pts3[i].y
+        while (j + 1 < edgeR.length && !surfaceStep(j + 1) && level(j + 1) && pts3[j + 1].y === pts3[i].y
           && dirKey(j + 1) === dirKey(i) && Math.abs(edgeR[j + 1] - edgeR[i]) < 1e-6) j++;
       }
       runSegs.push({ s: seg(pts3[i], pts3[j + 1]), r: edgeR[i], shared: edgeN[i] > 1 });
@@ -320,6 +338,7 @@ function SurfaceConnection({ cr, edgeCount, desk, emphasis = 'normal' }: { cr: E
       const nNext = k < edgeN.length ? edgeN[k] : 1;
       joints.push({ p: pts3[k], r: Math.max(rPrev, rNext), shared: Math.max(nPrev, nNext) > 1 });
     }
+    joints.push(...stepJoints); // round off the desk-edge riser bends
     return { stubSegs: stubs, runSegs, joints };
   }, [cable.id, cells, portA, portB, runY, desk, edgeCount]);
 

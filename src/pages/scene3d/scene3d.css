@@ -7,6 +7,7 @@
 
 /* ── TOOLBAR ── */
 .page-3d #toolbar {
+  position: relative;
   height: var(--toolbar-h);
   background: var(--surface);
   border-bottom: 1px solid var(--border);
@@ -46,6 +47,28 @@
 .page-3d .tool-btn.danger:hover { background: var(--danger); border-color: var(--danger); color: #fff; }
 
 .page-3d .sep { width: 1px; height: 24px; background: var(--border); margin: 0 4px; }
+
+/* Navigation menu: segmented view switcher on the left */
+.page-3d .nav-menu {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface2);
+}
+.page-3d .nav-menu .tool-btn { border-color: transparent; }
+
+/* Operation menu: screen-specific actions, centered in the panel */
+.page-3d .op-menu {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
 
 /* ── MAIN ── */
 .page-3d #main {

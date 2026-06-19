@@ -1,5 +1,5 @@
 import { useRef, type RefObject } from 'react';
-import { Link } from 'react-router-dom';
+import NavMenu from '../../components/NavMenu';
 import { useLayoutStore } from '../../stores/layoutStore';
 import { fitViewTransform, zoomAtPoint } from '../../lib/geometry2d';
 import { exportLayoutJSON, readLayoutFile } from '../../lib/persistence';
@@ -57,46 +57,46 @@ export default function Toolbar({ wrapRef }: { wrapRef: RefObject<HTMLDivElement
     <div id="toolbar">
       <span className="logo">⌨ CableManager5000</span>
 
-      <button
-        className={`tool-btn ${mode === 'select' ? 'active' : ''}`}
-        title="Select / Move (S)"
-        onClick={() => useLayoutStore.getState().setMode('select')}
-      >
-        <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 2l7 4-4 1-2 4z" fill="currentColor" /></svg>
-        Select
-      </button>
-      <button
-        className={`tool-btn ${mode === 'cable' ? 'active' : ''}`}
-        title="Add Cable (C)"
-        onClick={() => useLayoutStore.getState().setMode('cable')}
-      >
-        <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 10 Q6 2 10 2" stroke="currentColor" strokeWidth="2" fill="none" /><circle cx="2" cy="10" r="1.5" fill="currentColor" /><circle cx="10" cy="2" r="1.5" fill="currentColor" /></svg>
-        Add Cable
-      </button>
-      <button className="tool-btn danger" title="Delete selected (Del)" onClick={onDelete}>
-        <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 2l8 8M10 2l-8 8" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" /></svg>
-        Delete
-      </button>
+      <NavMenu />
 
-      <div className="sep" />
+      <div className="op-menu">
+        <button
+          className={`tool-btn ${mode === 'select' ? 'active' : ''}`}
+          title="Select / Move (S)"
+          onClick={() => useLayoutStore.getState().setMode('select')}
+        >
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 2l7 4-4 1-2 4z" fill="currentColor" /></svg>
+          Select
+        </button>
+        <button
+          className={`tool-btn ${mode === 'cable' ? 'active' : ''}`}
+          title="Add Cable (C)"
+          onClick={() => useLayoutStore.getState().setMode('cable')}
+        >
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 10 Q6 2 10 2" stroke="currentColor" strokeWidth="2" fill="none" /><circle cx="2" cy="10" r="1.5" fill="currentColor" /><circle cx="10" cy="2" r="1.5" fill="currentColor" /></svg>
+          Add Cable
+        </button>
+        <button className="tool-btn danger" title="Delete selected (Del)" onClick={onDelete}>
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 2l8 8M10 2l-8 8" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" /></svg>
+          Delete
+        </button>
 
-      <button className="tool-btn" title="Zoom Out" onClick={() => adjustZoom(0.8)}>－</button>
-      <button className="tool-btn" title="Fit all devices" onClick={fitView}>Fit</button>
-      <button className="tool-btn" title="Zoom In" onClick={() => adjustZoom(1.2)}>＋</button>
+        <div className="sep" />
 
-      <div className="sep" />
+        <button className="tool-btn" title="Zoom Out" onClick={() => adjustZoom(0.8)}>－</button>
+        <button className="tool-btn" title="Fit all devices" onClick={fitView}>Fit</button>
+        <button className="tool-btn" title="Zoom In" onClick={() => adjustZoom(1.2)}>＋</button>
 
-      <button className="tool-btn" title="Import JSON" onClick={() => fileRef.current?.click()}>Import</button>
-      <button className="tool-btn" title="Export JSON" onClick={onExport}>Export</button>
-      <input ref={fileRef} type="file" accept=".json" style={{ display: 'none' }} onChange={onImportFile} />
+        <div className="sep" />
 
-      <div className="sep" />
+        <button className="tool-btn" title="Import JSON" onClick={() => fileRef.current?.click()}>Import</button>
+        <button className="tool-btn" title="Export JSON" onClick={onExport}>Export</button>
+        <input ref={fileRef} type="file" accept=".json" style={{ display: 'none' }} onChange={onImportFile} />
 
-      <button className="tool-btn danger" title="Reset to default layout" onClick={onReset}>Reset</button>
+        <div className="sep" />
 
-      <div className="sep" />
-
-      <Link className="tool-btn" title="Open 3D desk view" to="/3d">3D View →</Link>
+        <button className="tool-btn danger" title="Reset to default layout" onClick={onReset}>Reset</button>
+      </div>
     </div>
   );
 }
