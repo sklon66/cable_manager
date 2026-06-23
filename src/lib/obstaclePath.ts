@@ -1,12 +1,12 @@
 import type { DeskConfig } from '../types';
 import { DESK_Y, bounds } from './desk';
-import { CABLE_RADIUS } from './autopath';
+import { CABLE_RADIUS, CLEARANCE } from './autopath';
 import type { PortInfo } from './ports3d';
 
 // Cables run just above the desk surface and weave around device footprints,
 // so they never pass through another device or down into the table slab.
 export const ROUTE_Y = DESK_Y + 0.5;
-export const CLEARANCE = 6;       // straight stub out of the port before the first turn
+export { CLEARANCE };             // re-exported from autopath: straight stub out of the port (single source)
 const CELL = 2;                   // grid resolution (cm) — matches device snap, tight hugging
 const PAD = 24;                   // routable margin beyond the desk edge (cm)
 const OBST_EXPAND = CABLE_RADIUS; // only the cable's own radius — cables hug device edges

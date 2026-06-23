@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import type { PortInfo } from './ports3d';
 
 export const CABLE_RADIUS = 0.3; // cm
-const CLEARANCE = 6;             // cm straight out of the port before the first turn
+export const CLEARANCE = 1;      // cm straight out of the port before the first turn (0 = none)
 
 /**
  * Fresh autopath: orthogonal (Manhattan) route between two ports using only
